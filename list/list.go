@@ -1,4 +1,4 @@
-package main
+package list
 
 import "container/list"
 
@@ -29,8 +29,8 @@ type List struct {
 	usedHashes map[string]struct{}
 }
 
-// NewList creates a new baps3d list.
-func NewList() *List {
+// New creates a new baps3d list.
+func New() *List {
 	return &List{
 		list:       list.New(),
 		selection:  -1,
