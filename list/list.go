@@ -27,7 +27,7 @@ func (a AutoMode) String() string {
 	case AutoShuffle:
 		return "shuffle"
 	}
-	panic(fmt.Sprintf("unknown automode: %v", a))
+	panic(fmt.Sprintf("unknown automode: %#v", a))
 }
 
 // List is the internal representation of a baps3d list.
