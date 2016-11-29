@@ -1,6 +1,9 @@
 package list
 
-import "container/list"
+import (
+	"container/list"
+	"fmt"
+)
 
 // AutoMode is the type of autoselection modes.
 type AutoMode int
@@ -11,6 +14,21 @@ const (
 	AutoNext
 	AutoShuffle
 )
+
+// String gets the Bifrost name of an AutoMode as a string.
+func (a AutoMode) String() string {
+	switch a {
+	case AutoOff:
+		return "off"
+	case AutoDrop:
+		return "drop"
+	case AutoNext:
+		return "next"
+	case AutoShuffle:
+		return "shuffle"
+	}
+	panic(fmt.Sprintf("unknown automode: %v", a))
+}
 
 // List is the internal representation of a baps3d list.
 // It only maintains the playlist itself: it does not talk to the environment,
@@ -43,6 +61,11 @@ func New() *List {
 func (l *List) SetAutoMode(mode AutoMode) {
 	l.autoselect = mode
 	l.clearUsedHashes()
+}
+
+// AutoMode gets the current autoselect mode for the given List.
+func (l *List) GetAutoMode() AutoMode {
+	return l.autoselect
 }
 
 // Next advances the selection according to the automode.
