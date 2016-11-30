@@ -2,7 +2,12 @@ package main
 
 import "github.com/UniversityRadioYork/baps3d/list"
 
-func main() {
+func spinUpList() *list.Controller {
 	lst := list.New()
-	lst.Next()
+	return list.NewController(lst)
+}
+
+func main() {
+	lc := spinUpList()
+	go lc.Run()
 }
