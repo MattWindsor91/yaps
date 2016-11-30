@@ -1,5 +1,9 @@
 package list
 
+// This file contains the channel protocol for talking to a Controller.
+// See 'controller.go' for the Controller implementation.
+
+
 // Requester is the structure identifying where a request originated.
 type Requester struct {
 	// Tag represents the tag of the request, if applicable.
