@@ -3,6 +3,8 @@ package list
 import (
 	"container/list"
 	"fmt"
+	"time"
+	"math/rand"	
 )
 
 // AutoMode is the type of autoselection modes.
@@ -49,6 +51,8 @@ type List struct {
 
 	// autoselect is the current autoselection mode.
 	autoselect AutoMode
+	// rng is the random number generator for autoshuffling.
+	rng *rand.Rand
 	// usedHashes is the set of currently spent hashes since the last select.
 	// It is used for calculating the next track in AutoShuffle mode.
 	usedHashes map[string]struct{}
@@ -57,10 +61,15 @@ type List struct {
 // New creates a new baps3d list.
 // The list begins with no selection, an empty list, and autoselect off.
 func New() *List {
+	// Hopefully, the current time is an ok seed.
+	// This just needs to be 'random enough', not foolproof
+	src := rand.NewSource(time.Now().Unix())
+
 	return &List{
 		list:       list.New(),
 		selection:  -1,
 		autoselect: AutoOff,
+		rng:        rand.New(src),
 		usedHashes: make(map[string]struct{}),
 	}
 }
@@ -79,8 +88,12 @@ func (l *List) AutoMode() AutoMode {
 
 // SetAutoMode changes the current autoselect mode for the given List.
 func (l *List) SetAutoMode(mode AutoMode) {
+	// If we've _just_ changed to shuffle mode, prepare the state for it.
+	if mode == AutoShuffle && l.autoselect != AutoShuffle {
+		l.clearUsedHashes()
+	}
+
 	l.autoselect = mode
-	l.clearUsedHashes()
 }
 
 
@@ -132,7 +145,7 @@ func (l *List) Next() (int, bool) {
 			l.selection = -1
 		}
 	case AutoShuffle:
-		panic("TODO(CaptainHayashi): implement shuffle")
+		l.selection = l.shuffleChoose()
 	}
 
 	return l.selection, true
@@ -141,4 +154,42 @@ func (l *List) Next() (int, bool) {
 // clearUsedHashes empties the used hash bucket for the given List.
 func (l *List) clearUsedHashes() {
 	l.usedHashes = make(map[string]struct{})
+}
+
+
+// shuffleChoose selects a random item from the playlist.
+// It will not select an item whose hash is in the used hash bucket.
+func (l *List) shuffleChoose() int {
+	// First, work out which items are available.
+	/* TODO(CaptainHayashi): this is slow, but guaranteed to terminate.
+	   Randomly choosing an index then checking it for previous play would be faster
+	   in some cases, but could technically never terminate. */
+	count := 0
+	i := 0
+	unpicked := make([]int, l.list.Len())
+	unpickedH := make([]string, l.list.Len())
+	for e := l.list.Front(); e != nil; e = e.Next() {
+		le := e.Value.(*Item)
+		if _, in := l.usedHashes[le.hash]; !in {
+			/* Record the index primarily, and the hash for recording later.
+			   This is slightly inefficient, as we need to fish the item
+			   back out of the linked list when we select it, but it makes
+			   the logic cleaner. */
+			unpicked[count] = i
+			unpickedH[count] = le.hash
+			count++
+		}
+		i++
+	}
+
+	/* If we didn't find anything, we're done with this shuffle.
+	   Prepare a new one. */
+	if count == 0 {
+		l.clearUsedHashes()
+		return -1
+	}
+
+	s := l.rng.Intn(count)
+	l.usedHashes[unpickedH[s]] = struct{}{}
+	return unpicked[s]
 }
