@@ -42,3 +42,8 @@ func NewTrack(hash, path string) *Item {
 func NewText(hash, contents string) *Item {
 	return &Item { hash, contents, ItemText }
 }
+
+// Hash returns the hash of the Item.
+func (i *Item) Hash() string {
+	return i.hash
+}

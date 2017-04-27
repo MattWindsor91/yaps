@@ -35,3 +35,15 @@ func ExampleList_SetAutoMode() {
 	// off
 	// shuffle
 }
+
+
+func ExampleList_Selection() {
+	// New lists have no selection.
+	l := list.New()
+
+	idx, _ := l.Selection()
+	fmt.Println(idx)
+
+	// Output:
+	// -1
+}

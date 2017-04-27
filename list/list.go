@@ -2,6 +2,7 @@ package list
 
 import (
 	"container/list"
+	"fmt"
 	"time"
 	"math/rand"	
 )
@@ -68,12 +69,38 @@ func New() *List {
 	}
 }
 
+// Add adds an Item to a list.
+// It will fail if there is already an Item with the same hash enqueued.
+func (l *List) Add(item *Item, i int) error {
+	if j, _ := l.ItemWithHash(item.Hash()); j > -1 {
+		return fmt.Errorf("List.Add(): duplicate hash %s at index %i", item.Hash(), j)
+	}
+
+	// Adding an item on or before the current selection moves it down one.
+	if i <= l.selection {
+		l.selection++
+	}
+
+	// We have to handle the 'front of list' situation specially:
+	// all the other ones expect a predecessor element.
+	if i == 0 {
+		l.list.PushFront(item)
+		return nil
+	}
+
+	if e := l.elementWithIndex(i - 1); e != nil {
+		l.list.InsertAfter(item, e)
+		return nil
+	}
+
+	// There was no predecessor, and index is not 0, so we've overshot
+	return fmt.Errorf("Tried to insert element at index %d when there are only %d item(s)", i, l.Count())
+}
 
 // Count gets the number of items in the list.
 func (l *List) Count() int {
 	return l.list.Len()
 }
-
 
 // AutoMode gets the current autoselect mode for the given List.
 func (l *List) AutoMode() AutoMode {
@@ -90,59 +117,106 @@ func (l *List) SetAutoMode(mode AutoMode) {
 	l.autoselect = mode
 }
 
+// elementWithIndex tries to find the linked list node with the given index.
+// It returns nil if one couldn't be found.
+func (l *List) elementWithIndex(i int) (*list.Element) {
+	// Keep going until we either run out of items, or find the right index.
+	// This is O(n), but the lists will usually be quite small anyway.
+	e := l.list.Front();
+	for j := 0; e != nil && j != i; j-- {
+		e = e.Next()
+	}
+	return e
+}
+
+// ItemWithIndex tries to find the item with the given index.
+// The result is returned as a pair of 'ok' flag and possible item.
+// If the flag is false, there is no item with that index, and the item is nil.
+func (l *List) ItemWithIndex(i int) (bool, *Item) {
+	if e := l.elementWithIndex(i); e != nil {
+		return true, e.Value.(*Item)
+	}
+	return false, nil
+}
+
+// elementWithIndex tries to find the linked list node with the given index.
+// It returns (-1, nil) if one couldn't be found.
+func (l *List) elementWithHash(hash string) (int, *list.Element) {
+	// Keep going until we either run out of items, or find ours.
+	// This is O(n), but the lists will usually be quite small anyway.
+	i := 0
+	for e := l.list.Front(); e != nil; e = e.Next() {
+		item := e.Value.(*Item)
+		if item.Hash() == hash {
+			return i, e
+		}
+		i++
+	}
+
+	// We didn't find the item (the case where we did is handled in the loop).
+	return -1, nil
+}
+
+// ItemWithHash tries to find the item with the given hash.
+// The result is returned as a pair of index and possible item.
+// If the index is -1, there is no item with that hash, and the item is nil.
+func (l *List) ItemWithHash(hash string) (int, *Item) {
+	if i, e := l.elementWithHash(hash); e != nil {
+		return i, e.Value.(*Item)
+	}
+	return -1, nil
+}
 
 // Selection gets the current selection for the given List.
 // The selection is returned as a pair of index and possible item.
 // If the index is -1, there is no selection, and the item is nil.
 func (l *List) Selection() (int, *Item) {
-	if l.selection < -1 {
-		panic("Selection(): selection negative but not -1")
-	}	
-
 	// No selection?
 	if l.selection == -1 {
 		return -1, nil
 	}
 
-	// selection is positive, so we need to walk through the list to find it.
-	e := l.list.Front();
-	for sel := l.selection; 0 < sel; sel-- {
-		// The selection being above the number of items is an internal error.
-		if e == nil {
-			panic("Selection(): selection out of bounds")
-		}
-
-		e = e.Next()
+	if ok, item := l.ItemWithIndex(l.selection); ok {
+		return l.selection, item
 	}
 
-	// In this case, we've found our selected item.
-	return l.selection, e.Value.(*Item)
+	// The selection not being found is an internal error.
+	panic("Selection(): selection not in list")
 }
 
 // Next advances the selection according to the automode.
 // It returns the new selection and a Boolean stating whether the selection changed.
 func (l *List) Next() (int, bool) {
+	e := l.elementWithIndex(l.selection)
 	// We can't get the next selection if nothing is selected.
 	// TODO(CaptainHayashi): is this true in shuffle mode?
-	if l.selection == -1 {
+	if e == nil {
 		return -1, false
 	}
 
+	ni, nh := l.chooseNext(l.selection, e)
+	l.selection = ni
+	return ni, nh != e.Value.(*Item).Hash()
+}
+
+// chooseNext chooses the next selection based on the given previous selection element.
+func (l *List) chooseNext(i int, prev *list.Element) (int, string) {
 	switch l.autoselect {
 	case AutoOff:
-		return l.selection, false
+		return i, prev.Value.(*Item).hash
 	case AutoDrop:
-		l.selection = -1
+		return -1, ""
 	case AutoNext:
-		l.selection++
-		if l.selection >= l.list.Len() {
-			l.selection = -1
+		if e := prev.Next(); e != nil {
+			return i + 1, e.Value.(*Item).Hash()
 		}
+		return -1, ""
 	case AutoShuffle:
-		l.selection = l.shuffleChoose()
+		return l.shuffleChoose()
 	}
 
-	return l.selection, true
+	// TODO: error here?
+	return -1, ""
 }
 
 // clearUsedHashes empties the used hash bucket for the given List.
@@ -153,24 +227,22 @@ func (l *List) clearUsedHashes() {
 
 // shuffleChoose selects a random item from the playlist.
 // It will not select an item whose hash is in the used hash bucket.
-func (l *List) shuffleChoose() int {
+// It returns a the index and hash.
+func (l *List) shuffleChoose() (int, string) {
 	// First, work out which items are available.
 	/* TODO(CaptainHayashi): this is slow, but guaranteed to terminate.
-	   Randomly choosing an index then checking it for previous play would be faster
+	   Randomly choosing a hash then checking it for previous play would be faster
 	   in some cases, but could technically never terminate. */
 	count := 0
-	i := 0
-	unpicked := make([]int, l.list.Len())
 	unpickedH := make([]string, l.list.Len())
+	unpickedI := make([]int, l.list.Len())
+	i := 0
 	for e := l.list.Front(); e != nil; e = e.Next() {
 		le := e.Value.(*Item)
-		if _, in := l.usedHashes[le.hash]; !in {
-			/* Record the index primarily, and the hash for recording later.
-			   This is slightly inefficient, as we need to fish the item
-			   back out of the linked list when we select it, but it makes
-			   the logic cleaner. */
-			unpicked[count] = i
-			unpickedH[count] = le.hash
+		lh := le.Hash()
+		if _, in := l.usedHashes[lh]; !in {
+			unpickedH[count] = lh
+			unpickedI[count] = i
 			count++
 		}
 		i++
@@ -180,10 +252,10 @@ func (l *List) shuffleChoose() int {
 	   Prepare a new one. */
 	if count == 0 {
 		l.clearUsedHashes()
-		return -1
+		return -1, ""
 	}
 
 	s := l.rng.Intn(count)
 	l.usedHashes[unpickedH[s]] = struct{}{}
-	return unpicked[s]
+	return unpickedI[s], unpickedH[s]
 }
