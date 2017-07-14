@@ -183,6 +183,28 @@ func (l *List) Selection() (int, *Item) {
 	panic("Selection(): selection not in list")
 }
 
+// Select tries to select the item with the given index and hash.
+// It returns a Boolean stating whether the selection changed.
+// It fails if the item doesn't exist, or has a different hash.
+func (l *List) Select(index int, hash string) (changed bool, err error) {
+	// We always validate the hash, even if the index hasn't changed.
+	i := l.ItemWithIndex(index)
+	if i == nil {
+		err = fmt.Errorf("Select: index %d out of bounds", i)
+		return
+	}
+
+	ihash := i.Hash()
+	if hash != ihash {
+		err = fmt.Errorf("Select: hash mismatch: requested '%s', actual '%s'", hash, ihash)
+		return
+	}
+
+	changed = index != l.selection
+	l.selection = index
+	return
+}
+
 // Next advances the selection according to the automode.
 // It returns the new selection and a Boolean stating whether the selection changed.
 func (l *List) Next() (int, bool) {
