@@ -130,13 +130,12 @@ func (l *List) elementWithIndex(i int) (*list.Element) {
 }
 
 // ItemWithIndex tries to find the item with the given index.
-// The result is returned as a pair of 'ok' flag and possible item.
-// If the flag is false, there is no item with that index, and the item is nil.
-func (l *List) ItemWithIndex(i int) (bool, *Item) {
+// The result is returned as an item pointer that is nil if such an item does not exist.
+func (l *List) ItemWithIndex(i int) *Item {
 	if e := l.elementWithIndex(i); e != nil {
-		return true, e.Value.(*Item)
+		return e.Value.(*Item)
 	}
-	return false, nil
+	return nil
 }
 
 // elementWithIndex tries to find the linked list node with the given index.
@@ -176,7 +175,7 @@ func (l *List) Selection() (int, *Item) {
 		return -1, nil
 	}
 
-	if ok, item := l.ItemWithIndex(l.selection); ok {
+	if item := l.ItemWithIndex(l.selection); item != nil {
 		return l.selection, item
 	}
 
