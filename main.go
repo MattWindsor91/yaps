@@ -1,6 +1,10 @@
 package main
 
-import "github.com/UniversityRadioYork/baps3d/list"
+import (
+	"github.com/UniversityRadioYork/baps3d/bifrost"
+	"github.com/UniversityRadioYork/baps3d/console"
+	"github.com/UniversityRadioYork/baps3d/list"
+)
 
 func spinUpList() (*list.Controller, *list.Client) {
 	lst := list.New()
@@ -8,15 +12,12 @@ func spinUpList() (*list.Controller, *list.Client) {
 }
 
 func main() {
-	lc, cli := spinUpList()
+	lc, _ := spinUpList()
 	go lc.Run()
 
-	close(cli.Tx)
-	for {
-		_, ok := <-cli.Rx
-		// TODO: do something with this
-		if !ok {
-			break
-		}
-	}
+	dummy := make(chan bifrost.Message)
+	console := console.New(dummy)
+
+	go console.RunRx()
+	console.RunTx()
 }
