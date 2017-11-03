@@ -33,6 +33,22 @@ func (a AutoMode) String() string {
 	}
 }
 
+// ParseAutoMode tries to parse an AutoMode from a string.
+func ParseAutoMode(s string) (AutoMode, error) {
+	switch s {
+	case "off":
+		return AutoOff, nil
+	case "drop":
+		return AutoDrop, nil
+	case "next":
+		return AutoNext, nil
+	case "shuffle":
+		return AutoShuffle, nil
+	default:
+		return AutoOff, fmt.Errorf("invalid automode")
+	}
+}
+
 // List is the internal representation of a baps3d list.
 // It only maintains the playlist itself: it does not talk to the environment,
 // nor does it know anything about what is actually playing.

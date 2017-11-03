@@ -1,7 +1,8 @@
 package list
 
-// This file contains the channel protocol for talking to a Controller.
+// This file contains the requests a list Controller understands.
 // See 'controller.go' for the Controller implementation.
+// See 'bifrost.go' for a mapping between these and Bifrost messages.
 
 // RequestOrigin is the structure identifying where a request originated.
 type RequestOrigin struct {
@@ -12,8 +13,8 @@ type RequestOrigin struct {
 }
 
 // Requester is the interface for requests to a Controller.
-type Requester struct {
-	Do func(list *List)
+type Requester interface {
+	Do(list *List)
 }
 
 // Request is the base structure for requests to a Controller.
@@ -31,8 +32,6 @@ func (r Request) Do(list *List) {
 
 // SetSelectRequest requests a selection change.
 type SetSelectRequest struct {
-	Request
-
 	// Index represents the index to select.
 	Index int
 	// Hash represents the hash of the item to select.
@@ -42,13 +41,14 @@ type SetSelectRequest struct {
 
 // NextRequest requests a selection skip.
 type NextRequest struct {
-	Request
 }
 
 // SetAutoModeRequest requests an automode change.
 type SetAutoModeRequest struct {
-	Request
-
 	// AutoMode represents the new AutoMode to use.
 	AutoMode AutoMode
+}
+
+func (r SetAutoModeRequest) Do(list *List) {
+	list.SetAutoMode(r.AutoMode)
 }

@@ -9,15 +9,23 @@ import (
 )
 
 type Console struct {
-	msg chan bifrost.Message
+	msgs chan bifrost.Message
 	in *bifrost.Tokeniser
 }
 
-func New(msg chan bifrost.Message) *Console {
-	return &Console{ msg: msg, in: bifrost.NewTokeniser(os.Stdin), }
+func New(msgs chan bifrost.Message) *Console {
+	return &Console{ msgs: msgs, in: bifrost.NewTokeniser(os.Stdin), }
 }
 
 func (c *Console) RunRx() {
+	for m := range c.msgs {
+		mbytes, err := m.Pack()
+		if (err != nil) {
+			fmt.Println("-> rx error:", err)
+			continue
+		}
+		os.Stdout.Write(mbytes)
+	}
 }
 
 func (c *Console) RunTx() {
@@ -28,12 +36,12 @@ func (c *Console) RunTx() {
 			return
 		}
 
-		_, merr := bifrost.LineToMessage(line)
+		msg, merr := bifrost.LineToMessage(line)
 		if merr != nil {
 			fmt.Println("-> invalid message:", merr)
 			continue
 		}
 
-		// TODO: do something with msg
+		c.msgs <- *msg
 	}
 }
