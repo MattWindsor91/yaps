@@ -35,12 +35,12 @@ type Item struct {
 
 // NewTrack creates a new track-type item.
 func NewTrack(hash, path string) *Item {
-	return &Item { hash, path, ItemTrack }
+	return &Item{hash, path, ItemTrack}
 }
 
 // NewText creates a new text-type item.
 func NewText(hash, contents string) *Item {
-	return &Item { hash, contents, ItemText }
+	return &Item{hash, contents, ItemText}
 }
 
 // Hash returns the hash of the Item.

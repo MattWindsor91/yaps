@@ -3,19 +3,30 @@ package list
 // This file contains the channel protocol for talking to a Controller.
 // See 'controller.go' for the Controller implementation.
 
-
-// Requester is the structure identifying where a request originated.
-type Requester struct {
+// RequestOrigin is the structure identifying where a request originated.
+type RequestOrigin struct {
 	// Tag represents the tag of the request, if applicable.
 	Tag string
 
 	// TODO(CaptainHayashi): reply channel
 }
 
+// Requester is the interface for requests to a Controller.
+type Requester struct {
+	Do func(list *List)
+}
+
 // Request is the base structure for requests to a Controller.
 type Request struct {
 	// Origin gives information about the requester.
-	Origin Requester
+	Origin RequestOrigin
+
+	// Body gives the body of the request.
+	Body Requester
+}
+
+func (r Request) Do(list *List) {
+	r.Body.Do(list)
 }
 
 // SetSelectRequest requests a selection change.

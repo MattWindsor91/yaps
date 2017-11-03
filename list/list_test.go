@@ -7,10 +7,9 @@ import (
 	"github.com/UniversityRadioYork/baps3d/list"
 )
 
-
 func ExampleNew() {
 	l := list.New()
-	
+
 	fmt.Println(l.Count())
 
 	idx, _ := l.Selection()
@@ -36,7 +35,7 @@ func ExampleList_SetAutoMode() {
 
 	l.SetAutoMode(list.AutoNext)
 	fmt.Println(l.AutoMode())
-	
+
 	l.SetAutoMode(list.AutoShuffle)
 	fmt.Println(l.AutoMode())
 
@@ -49,7 +48,7 @@ func ExampleList_SetAutoMode() {
 
 // TestAutoModeString tests the String method of AutoMode.
 func TestAutoModeString(t *testing.T) {
-	cases := []struct{
+	cases := []struct {
 		a list.AutoMode
 		s string
 	}{
@@ -57,7 +56,7 @@ func TestAutoModeString(t *testing.T) {
 		{list.AutoDrop, "drop"},
 		{list.AutoNext, "next"},
 		{list.AutoShuffle, "shuffle"},
-		{list.AutoShuffle+1, "?unknown?"},
+		{list.AutoShuffle + 1, "?unknown?"},
 	}
 
 	for _, c := range cases {
@@ -83,10 +82,10 @@ func ExampleList_Selection() {
 	if _, err := l.Select(0, "xyz"); err != nil {
 		panic(err)
 	}
-	
+
 	idx, _ = l.Selection()
 	fmt.Println(idx)
-	
+
 	// Output:
 	// -1
 	// 0

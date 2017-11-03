@@ -3,8 +3,8 @@ package list
 import (
 	"container/list"
 	"fmt"
+	"math/rand"
 	"time"
-	"math/rand"	
 )
 
 // AutoMode is the type of autoselection modes.
@@ -119,10 +119,10 @@ func (l *List) SetAutoMode(mode AutoMode) {
 
 // elementWithIndex tries to find the linked list node with the given index.
 // It returns nil if one couldn't be found.
-func (l *List) elementWithIndex(i int) (*list.Element) {
+func (l *List) elementWithIndex(i int) *list.Element {
 	// Keep going until we either run out of items, or find the right index.
 	// This is O(n), but the lists will usually be quite small anyway.
-	e := l.list.Front();
+	e := l.list.Front()
 	for j := 0; e != nil && j != i; j-- {
 		e = e.Next()
 	}
@@ -244,7 +244,6 @@ func (l *List) chooseNext(i int, prev *list.Element) (int, string) {
 func (l *List) clearUsedHashes() {
 	l.usedHashes = make(map[string]struct{})
 }
-
 
 // shuffleChoose selects a random item from the playlist.
 // It will not select an item whose hash is in the used hash bucket.
