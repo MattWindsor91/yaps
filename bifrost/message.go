@@ -10,6 +10,9 @@ import (
 const (
 	// Standard Bifrost message word constants.
 
+	// TagBcast is the tag used for broadcasts.
+	TagBcast string = "!"
+
 	// - Requests
 
 	// - Responses
@@ -22,17 +25,19 @@ const (
 )
 
 // Message is a structure representing a full BAPS3 message.
-// It is comprised of a word, which is stored as a string, and zero or
+// It is comprised of a string tag, a string word, and zero or
 // more string arguments.
 type Message struct {
+	tag  string
 	word string
 	args []string
 }
 
-// New creates and returns a new Message with the given message word.
+// New creates and returns a new Message with the given tag and message word.
 // The message will initially have no arguments; use AddArg to add arguments.
-func NewMessage(word string) *Message {
+func NewMessage(tag, word string) *Message {
 	return &Message{
+		tag:  tag,
 		word: word,
 	}
 }
@@ -48,13 +53,13 @@ func escapeArgument(input string) string {
 	return "'" + strings.Replace(input, "'", `'\''`, -1) + "'"
 }
 
-// Pack outputs the given Message as raw bytes representing a BAPS3 message.
-// These bytes can be sent down a TCP connection to a BAPS3 server, providing
+// Pack outputs the given Message as raw bytes representing a Bifrost message.
+// These bytes can be sent down a TCP connection to a Bifrost server, providing
 // they are terminated using a line-feed character.
 func (m *Message) Pack() (packed []byte, err error) {
 	output := new(bytes.Buffer)
 
-	_, err = output.WriteString(m.word)
+	_, err = output.WriteString(m.tag + " " + m.word)
 	if err != nil {
 		return
 	}
@@ -77,6 +82,11 @@ func (m *Message) Pack() (packed []byte, err error) {
 
 	packed = output.Bytes()
 	return
+}
+
+// Tag returns this Message's tag.
+func (m *Message) Tag() string {
+	return m.tag
 }
 
 // Word returns the message word of the given Message.
@@ -115,11 +125,11 @@ func (m *Message) String() (outstr string) {
 
 // lineToMessage constructs a Message struct from a line of word-strings.
 func LineToMessage(line []string) (msg *Message, err error) {
-	if len(line) == 0 {
-		err = fmt.Errorf("cannot construct message from zero words")
+	if len(line) < 2 {
+		err = fmt.Errorf("insufficient words")
 	} else {
-		msg = NewMessage(line[0])
-		for _, arg := range line[1:] {
+		msg = NewMessage(line[0], line[1])
+		for _, arg := range line[2:] {
 			msg.AddArg(arg)
 		}
 	}

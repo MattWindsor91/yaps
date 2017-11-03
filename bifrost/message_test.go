@@ -10,46 +10,49 @@ func TestMessage(t *testing.T) {
 	}{
 		// Empty request
 		{
-			[]string{"write"},
-			NewMessage("write"),
+			[]string{"x", "write"},
+			NewMessage("x", "write"),
 		},
 		// Request with one argument
 		{
-			[]string{"read", "/control/state"},
-			NewMessage("read").AddArg("/control/state"),
+			[]string{"y", "read", "/control/state"},
+			NewMessage("y", "read").AddArg("/control/state"),
 		},
-		// Request with multiple argument
+		// Request with multiple arguments
 		{
-			[]string{"write", "/player/time", "0"},
-			NewMessage("write").AddArg("/player/time").AddArg("0"),
+			[]string{"z", "write", "/player/time", "0"},
+			NewMessage("z", "write").AddArg("/player/time").AddArg("0"),
 		},
 		// Empty response
 		{
-			[]string{"RES"},
-			NewMessage("RES"),
+			[]string{"!", "RES"},
+			NewMessage(TagBcast, "RES"),
 		},
 		// Response with one argument
 		{
-			[]string{"OHAI", "playd 1.0.0"},
-			NewMessage(RsOhai).AddArg("playd 1.0.0"),
+			[]string{"!", "OHAI", "playd 1.0.0"},
+			NewMessage(TagBcast, RsOhai).AddArg("playd 1.0.0"),
 		},
 		// Response with multiple argument
 		{
-			[]string{"ACK", "int", "OK", "1337"},
-			NewMessage(RsAck).AddArg("int").AddArg("OK").AddArg("1337"),
+			[]string{"x", "ACK", "int", "OK", "1337"},
+			NewMessage("x", RsAck).AddArg("int").AddArg("OK").AddArg("1337"),
 		},
 	}
 
 	for _, c := range cases {
-		if c.words[0] != c.msg.Word() {
-			t.Errorf("Word() == %q, expected %q", c.msg.Word(), c.words[0])
+		if c.words[0] != c.msg.Tag() {
+			t.Errorf("Tag() == %q, expected %q", c.msg.Tag(), c.words[0])
+		}
+		if c.words[1] != c.msg.Word() {
+			t.Errorf("Word() == %q, expected %q", c.msg.Word(), c.words[1])
 		}
 	}
 
 	// And now, test args.
 	// TODO(CaptainHayashi): refactor the above to integrate this test
 	args := []string{"bibbity", "bobbity", "boo"}
-	msg := NewMessage("flax")
+	msg := NewMessage("spelt", "flax")
 	for _, arg := range args {
 		msg.AddArg(arg)
 	}
@@ -87,33 +90,33 @@ func TestPack(t *testing.T) {
 	}{
 		// Unescaped command
 		{
-			&Message{"write", []string{"uuid", "/player/file", "/home/donald/wjaz.mp3"}},
-			[]byte("write uuid /player/file /home/donald/wjaz.mp3\n"),
+			&Message{"x", "write", []string{"uuid", "/player/file", "/home/donald/wjaz.mp3"}},
+			[]byte("x write uuid /player/file /home/donald/wjaz.mp3\n"),
 		},
 		// Backslashes
 		{
-			&Message{"write", []string{"uuid", "/player/file", `C:\silly\windows\is\silly`}},
-			[]byte(`write uuid /player/file 'C:\silly\windows\is\silly'` + "\n"),
+			&Message{"y", "write", []string{"uuid", "/player/file", `C:\silly\windows\is\silly`}},
+			[]byte(`y write uuid /player/file 'C:\silly\windows\is\silly'` + "\n"),
 		},
 		// No args TODO: Can't happen any more?
 		{
-			&Message{"read", []string{}},
-			[]byte("read\n"),
+			&Message{"z", "read", []string{}},
+			[]byte("z read\n"),
 		},
 		// Spaces
 		{
-			&Message{"write", []string{"uuid", "/player/file", "/home/donald/01 The Nightfly.mp3"}},
-			[]byte("write uuid /player/file '/home/donald/01 The Nightfly.mp3'\n"),
+			&Message{"abc", "write", []string{"uuid", "/player/file", "/home/donald/01 The Nightfly.mp3"}},
+			[]byte("abc write uuid /player/file '/home/donald/01 The Nightfly.mp3'\n"),
 		},
 		// Single quotes
 		{
-			&Message{RsOhai, []string{"a'bar'b"}},
-			[]byte(`OHAI 'a'\''bar'\''b'` + "\n"),
+			&Message{TagBcast, RsOhai, []string{"a'bar'b"}},
+			[]byte(`! OHAI 'a'\''bar'\''b'` + "\n"),
 		},
 		// Double quotes
 		{
-			&Message{RsOhai, []string{`a"bar"b`}},
-			[]byte(`OHAI 'a"bar"b'` + "\n"),
+			&Message{TagBcast, RsOhai, []string{`a"bar"b`}},
+			[]byte(`! OHAI 'a"bar"b'` + "\n"),
 		},
 	}
 
