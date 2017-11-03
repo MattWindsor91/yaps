@@ -1,21 +1,21 @@
-package tokeniser
+package bifrost
 
 import (
 	"io"
 	"unicode"
 )
 
-// quoteType represents one of the types of quoting used in the BAPS3 protocol.
+// quoteType represents one of the types of quoting used in the Bifrost protocol.
 type quoteType int
 
 const (
-	// none represents the state between quoted parts of a BAPS3 message.
+	// none represents the state between quoted parts of a Bifrost message.
 	none quoteType = iota
 
-	// single represents 'single quoted' parts of a BAPS3 message.
+	// single represents 'single quoted' parts of a Bifrost message.
 	single
 
-	// double represents "double quoted" parts of a BAPS3 message.
+	// double represents "double quoted" parts of a Bifrost message.
 	double
 )
 
@@ -31,7 +31,7 @@ type Tokeniser struct {
 
 // NewTokeniser creates and returns a new, empty Tokeniser.
 // The Tokeniser will read from the given Reader when Tokenise is called.
-func New(reader io.Reader) *Tokeniser {
+func NewTokeniser(reader io.Reader) *Tokeniser {
 	return &Tokeniser{
 		escapeNextChar:   false,
 		currentQuoteType: none,

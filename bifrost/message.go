@@ -1,4 +1,4 @@
-package message
+package bifrost
 
 import (
 	"bytes"
@@ -12,22 +12,7 @@ const (
 
 	// - Requests
 
-	// RqRead denotes a 'read' request message.
-	RqRead string = "read"
-
-	// RqWrite denotes a 'write' request message.
-	RqWrite string = "write"
-
-	// RqDelete denotes a 'delete' request message.
-	RqDelete string = "delete"
-
 	// - Responses
-
-	// RsRes denotes a message with the 'RES' response.
-	RsRes string = "RES"
-
-	// RsUpdate denotes a message with the 'UPDATE' response.
-	RsUpdate string = "UPDATE"
 
 	// RsAck denotes a message with the 'ACK' response.
 	RsAck string = "ACK"
@@ -46,7 +31,7 @@ type Message struct {
 
 // New creates and returns a new Message with the given message word.
 // The message will initially have no arguments; use AddArg to add arguments.
-func New(word string) *Message {
+func NewMessage(word string) *Message {
 	return &Message{
 		word: word,
 	}
@@ -133,7 +118,7 @@ func LineToMessage(line []string) (msg *Message, err error) {
 	if len(line) == 0 {
 		err = fmt.Errorf("cannot construct message from zero words")
 	} else {
-		msg = New(line[0])
+		msg = NewMessage(line[0])
 		for _, arg := range line[1:] {
 			msg.AddArg(arg)
 		}

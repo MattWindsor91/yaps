@@ -1,4 +1,4 @@
-package message
+package bifrost
 
 import "testing"
 import "reflect"
@@ -11,32 +11,32 @@ func TestMessage(t *testing.T) {
 		// Empty request
 		{
 			[]string{"write"},
-			New(RqWrite),
+			NewMessage("write"),
 		},
 		// Request with one argument
 		{
 			[]string{"read", "/control/state"},
-			New(RqRead).AddArg("/control/state"),
+			NewMessage("read").AddArg("/control/state"),
 		},
 		// Request with multiple argument
 		{
 			[]string{"write", "/player/time", "0"},
-			New(RqWrite).AddArg("/player/time").AddArg("0"),
+			NewMessage("write").AddArg("/player/time").AddArg("0"),
 		},
 		// Empty response
 		{
 			[]string{"RES"},
-			New(RsRes),
+			NewMessage("RES"),
 		},
 		// Response with one argument
 		{
 			[]string{"OHAI", "playd 1.0.0"},
-			New(RsOhai).AddArg("playd 1.0.0"),
+			NewMessage(RsOhai).AddArg("playd 1.0.0"),
 		},
 		// Response with multiple argument
 		{
 			[]string{"ACK", "int", "OK", "1337"},
-			New(RsAck).AddArg("int").AddArg("OK").AddArg("1337"),
+			NewMessage(RsAck).AddArg("int").AddArg("OK").AddArg("1337"),
 		},
 	}
 
@@ -49,7 +49,7 @@ func TestMessage(t *testing.T) {
 	// And now, test args.
 	// TODO(CaptainHayashi): refactor the above to integrate this test
 	args := []string{"bibbity", "bobbity", "boo"}
-	msg := New("flax")
+	msg := NewMessage("flax")
 	for _, arg := range args {
 		msg.AddArg(arg)
 	}
@@ -87,22 +87,22 @@ func TestPack(t *testing.T) {
 	}{
 		// Unescaped command
 		{
-			&Message{RqWrite, []string{"uuid", "/player/file", "/home/donald/wjaz.mp3"}},
+			&Message{"write", []string{"uuid", "/player/file", "/home/donald/wjaz.mp3"}},
 			[]byte("write uuid /player/file /home/donald/wjaz.mp3\n"),
 		},
 		// Backslashes
 		{
-			&Message{RqWrite, []string{"uuid", "/player/file", `C:\silly\windows\is\silly`}},
+			&Message{"write", []string{"uuid", "/player/file", `C:\silly\windows\is\silly`}},
 			[]byte(`write uuid /player/file 'C:\silly\windows\is\silly'` + "\n"),
 		},
 		// No args TODO: Can't happen any more?
 		{
-			&Message{RqRead, []string{}},
+			&Message{"read", []string{}},
 			[]byte("read\n"),
 		},
 		// Spaces
 		{
-			&Message{RqWrite, []string{"uuid", "/player/file", "/home/donald/01 The Nightfly.mp3"}},
+			&Message{"write", []string{"uuid", "/player/file", "/home/donald/01 The Nightfly.mp3"}},
 			[]byte("write uuid /player/file '/home/donald/01 The Nightfly.mp3'\n"),
 		},
 		// Single quotes

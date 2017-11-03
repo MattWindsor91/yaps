@@ -1,4 +1,4 @@
-package tokeniser
+package bifrost
 
 import (
 	"bytes"
@@ -170,7 +170,7 @@ func TestTokenise(t *testing.T) {
 
 	for _, c := range cases {
 		br := bytes.NewReader([]byte(c.in))
-		tok := New(br)
+		tok := NewTokeniser(br)
 
 		var (
 			got  [][]string
