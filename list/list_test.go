@@ -2,7 +2,6 @@ package list_test
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/UniversityRadioYork/baps3d/list"
 )
@@ -44,27 +43,6 @@ func ExampleList_SetAutoMode() {
 	// drop
 	// next
 	// shuffle
-}
-
-// TestAutoModeString tests the String method of AutoMode.
-func TestAutoModeString(t *testing.T) {
-	cases := []struct {
-		a list.AutoMode
-		s string
-	}{
-		{list.AutoOff, "off"},
-		{list.AutoDrop, "drop"},
-		{list.AutoNext, "next"},
-		{list.AutoShuffle, "shuffle"},
-		{list.AutoShuffle + 1, "?unknown?"},
-	}
-
-	for _, c := range cases {
-		g := c.a.String()
-		if g != c.s {
-			t.Fatalf("%v.String() was '%s', should be '%s'", c.a, g, c.s)
-		}
-	}
 }
 
 // ExampleList_Selection tests List.Selection in an example style.

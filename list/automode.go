@@ -10,10 +10,18 @@ import "fmt"
 type AutoMode int
 
 const (
+	// AutoOff is a selection mode that does nothing when a track ends.
 	AutoOff AutoMode = iota
+	// AutoDrop is a selection mode that ejects when a track ends.
 	AutoDrop
+	// AutoNext is a selection mode that loads the next track when a track ends.
 	AutoNext
+	// AutoShuffle is a selection mode that selects the next track in a pseudorandom permuation when a track ends.
 	AutoShuffle
+	// FirstAuto points to the first AutoMode constant.
+	FirstAuto = AutoOff
+	// LastAuto points to the last AutoMode constant.
+	LastAuto = AutoNext
 )
 
 // String gets the Bifrost name of an AutoMode as a string.
