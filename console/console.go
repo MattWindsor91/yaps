@@ -11,14 +11,14 @@ import (
 type Console struct {
 	requestTx  chan<- bifrost.Message
 	responseRx <-chan bifrost.Message
-	in         *bifrost.Tokeniser
+	in         *bifrost.ReaderTokeniser
 }
 
 func New(requestTx chan<- bifrost.Message, responseRx <-chan bifrost.Message) *Console {
 	return &Console{
 		requestTx:  requestTx,
 		responseRx: responseRx,
-		in:         bifrost.NewTokeniser(os.Stdin),
+		in:         bifrost.NewReaderTokeniser(os.Stdin),
 	}
 }
 
@@ -35,7 +35,7 @@ func (c *Console) RunRx() {
 
 func (c *Console) RunTx() {
 	for {
-		line, terr := c.in.Tokenise()
+		line, terr := c.in.ReadLine()
 		if terr != nil {
 			fmt.Println("-> got error:", terr)
 			return
