@@ -4,8 +4,13 @@ package list
 type ItemType int
 
 const (
+	// ItemNone represents a nonexistent item.
 	ItemNone ItemType = iota
+	// ItemTrack represents a track item.
+	// Track items can be selected.
 	ItemTrack
+	// ItemText represents a textual item.
+	// Text items cannot be selected.
 	ItemText
 )
 

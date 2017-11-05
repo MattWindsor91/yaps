@@ -162,7 +162,7 @@ func toMessage(rs Response) (*bifrost.Message, error) {
 	case AckResponse:
 		return ackToMessage(tag, r)
 	default:
-		return nil, fmt.Errorf("response with no message equivalent: %A", r)
+		return nil, fmt.Errorf("response with no message equivalent: %v", r)
 	}
 }
 

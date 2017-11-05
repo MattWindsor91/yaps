@@ -50,9 +50,9 @@ func TestAutoModeParseIdempotence(t *testing.T) {
 	for i := list.FirstAuto; i <= list.LastAuto; i++ {
 		a, e := list.ParseAutoMode(i.String())
 		if e != nil {
-			t.Errorf("unexpected parse error: %A", e)
+			t.Errorf("unexpected parse error: %v", e)
 		} else if a != i {
-			t.Errorf("%A parsed as %A", i, a)
+			t.Errorf("%v parsed as %v", i, a)
 		}
 	}
 }

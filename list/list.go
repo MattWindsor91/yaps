@@ -47,7 +47,7 @@ func New() *List {
 // It will fail if there is already an Item with the same hash enqueued.
 func (l *List) Add(item *Item, i int) error {
 	if j, _ := l.ItemWithHash(item.Hash()); j > -1 {
-		return fmt.Errorf("List.Add(): duplicate hash %s at index %i", item.Hash(), j)
+		return fmt.Errorf("List.Add(): duplicate hash %s at index %d", item.Hash(), j)
 	}
 
 	// Adding an item on or before the current selection moves it down one.
@@ -170,7 +170,7 @@ func (l *List) Select(index int, hash string) (changed bool, err error) {
 	// We always validate the hash, even if the index hasn't changed.
 	i := l.ItemWithIndex(index)
 	if i == nil {
-		err = fmt.Errorf("Select: index %d out of bounds", i)
+		err = fmt.Errorf("Select: index %d out of bounds", index)
 		return
 	}
 

@@ -41,9 +41,9 @@ type coclient struct {
 func makeClient() (Client, coclient) {
 	rq := make(chan Request)
 	rs := make(chan Response)
-	client := Client{Tx: rq, Rx: rs}
-	coclient := coclient{tx: rs, rx: rq}
-	return client, coclient
+	cli := Client{Tx: rq, Rx: rs}
+	ccl := coclient{tx: rs, rx: rq}
+	return cli, ccl
 }
 
 // NewController constructs a new Controller for a given List.
