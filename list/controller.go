@@ -37,12 +37,6 @@ type coclient struct {
 	rx <-chan Request
 }
 
-type Response struct {
-	Body Responder
-}
-
-type Responder interface{}
-
 // makeClient creates a new client and coclient pair.
 func makeClient() (Client, coclient) {
 	rq := make(chan Request)
@@ -113,6 +107,17 @@ func (c *Controller) handleRequest(rq Request) {
 	// TODO(@MattWindsor91): send unicast responses back
 	switch body := rq.Body.(type) {
 	case SetAutoModeRequest:
-		c.list.SetAutoMode(body.AutoMode)
+		if c.list.SetAutoMode(body.AutoMode) {
+			c.broadcast(AutoModeResponse{AutoMode: c.list.AutoMode()})
+		}
+	}
+}
+
+// broadcast sends a broadcast response with body rbody to all clients.
+func (c *Controller) broadcast(rbody interface{}) {
+	response := Response{ Broadcast: true, Origin: nil, Body: rbody }
+	
+	for cl := range c.clients {
+		cl.tx <- response
 	}
 }

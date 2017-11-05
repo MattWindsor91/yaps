@@ -14,36 +14,45 @@ type Bifrost struct {
 	// client is the list Controller client.
 	client *Client
 
-	// msgs is the Bifrost messages channel for this adapter.
-	msgs chan bifrost.Message
+	// responseTx is the channel to which this adapter sends responses.
+	responseTx chan<- bifrost.Message
+
+	// requestRx is the channel to which this adapter sends requests.
+	requestRx <-chan bifrost.Message
 }
 
 // NewBifrost wraps client inside a Bifrost adapter.
-// It returns a bidirectional message channel that can be used to talk to it.
-func NewBifrost(client *Client) (*Bifrost, chan bifrost.Message) {
-	msgs := make(chan bifrost.Message)
-	return &Bifrost{client: client, msgs: msgs}, msgs
+// It returns a channel for sending request messages, and one for receiving response messages.
+func NewBifrost(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message) {
+	response := make(chan bifrost.Message)
+	request := make(chan bifrost.Message)
+	return &Bifrost{client: client, responseTx: response, requestRx: request}, request, response
 }
 
 // Run runs the main body of the Bifrost adapter.
 func (b *Bifrost) Run() {
 	for {
 		select {
-		case rq := <-b.msgs:
-			request, err := parseMessage(rq)
+		case rq := <-b.requestRx:
+			request, err := fromMessage(rq)
 			if err != nil {
-				b.msgs <- *errorToMessage(rq.Tag(), err)
+				b.responseTx <- *errorToMessage(rq.Tag(), err)
 			} else {
 				b.client.Tx <- *request
 			}
 		case rs := <-b.client.Rx:
-			fmt.Println("TODO: got broadcast", rs)
+			response, err := toMessage(rs)
+			if err != nil {
+				fmt.Println("internal message emit error:", err)
+			} else {
+				b.responseTx <- *response
+			}
 		}
 	}
 }
 
-// parseMessage tries to parse a message as a controller request.
-func parseMessage(m bifrost.Message) (*Request, error) {
+// fromMessage tries to parse a message as a controller request.
+func fromMessage(m bifrost.Message) (*Request, error) {
 	requester, err := parseMessageTail(m.Word(), m.Args())
 	if err != nil {
 		return nil, err
@@ -69,6 +78,18 @@ func parseMessageTail(word string, args []string) (interface{}, error) {
 		return SetAutoModeRequest{AutoMode: amode}, nil
 	default:
 		return nil, fmt.Errorf("unknown word: %s", word)
+	}
+}
+
+// toMessage tries to convert a response rs into a Bifrost message sent to tag t..
+func toMessage(rs Response) (*bifrost.Message, error) {
+	tag := rs.Tag()
+	
+	switch r := rs.Body.(type) {
+	case AutoModeResponse:
+		return bifrost.NewMessage(tag, "AUTO").AddArg(r.AutoMode.String()), nil
+	default:
+		return nil, fmt.Errorf("response with no message equivalent: %A", r)
 	}
 }
 

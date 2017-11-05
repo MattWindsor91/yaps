@@ -14,9 +14,9 @@ func main() {
 	lc, cli := spinUpList()
 	go lc.Run()
 
-	lb, lmsgs := list.NewBifrost(cli)
+	lb, ltx, lrx := list.NewBifrost(cli)
 	go lb.Run()
-	console := console.New(lmsgs)
+	console := console.New(ltx, lrx)
 
 	go console.RunRx()
 	console.RunTx()

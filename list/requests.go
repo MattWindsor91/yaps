@@ -4,6 +4,11 @@ package list
 // See 'controller.go' for the Controller implementation.
 // See 'bifrost.go' for a mapping between these and Bifrost messages.
 
+// When adding new responses, make sure to add:
+// - controller logic in 'controller.go';
+// - a parser from messages in 'bifrost.go';
+// - an emitter to messages in 'bifrost.go'.
+
 // RequestOrigin is the structure identifying where a request originated.
 type RequestOrigin struct {
 	// Tag represents the tag of the request, if applicable.
@@ -38,8 +43,4 @@ type NextRequest struct {
 type SetAutoModeRequest struct {
 	// AutoMode represents the new AutoMode to use.
 	AutoMode AutoMode
-}
-
-func (r SetAutoModeRequest) Do(list *List) {
-	list.SetAutoMode(r.AutoMode)
 }
