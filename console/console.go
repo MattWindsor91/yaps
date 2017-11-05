@@ -4,23 +4,23 @@ package console
 import (
 	"fmt"
 	"os"
-		
+
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
 
 type Console struct {
 	msgs chan bifrost.Message
-	in *bifrost.Tokeniser
+	in   *bifrost.Tokeniser
 }
 
 func New(msgs chan bifrost.Message) *Console {
-	return &Console{ msgs: msgs, in: bifrost.NewTokeniser(os.Stdin), }
+	return &Console{msgs: msgs, in: bifrost.NewTokeniser(os.Stdin)}
 }
 
 func (c *Console) RunRx() {
 	for m := range c.msgs {
 		mbytes, err := m.Pack()
-		if (err != nil) {
+		if err != nil {
 			fmt.Println("-> rx error:", err)
 			continue
 		}

@@ -5,7 +5,7 @@ package list
 
 import (
 	"fmt"
-	
+
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
 
@@ -22,7 +22,7 @@ type Bifrost struct {
 // It returns a bidirectional message channel that can be used to talk to it.
 func NewBifrost(client *Client) (*Bifrost, chan bifrost.Message) {
 	msgs := make(chan bifrost.Message)
-	return &Bifrost{ client: client, msgs: msgs }, msgs
+	return &Bifrost{client: client, msgs: msgs}, msgs
 }
 
 // Run runs the main body of the Bifrost adapter.
@@ -49,14 +49,14 @@ func parseMessage(m bifrost.Message) (*Request, error) {
 		return nil, err
 	}
 
-	return &Request {
-		Origin: RequestOrigin { Tag: m.Tag() },
-		Body: requester,
+	return &Request{
+		Origin: RequestOrigin{Tag: m.Tag()},
+		Body:   requester,
 	}, nil
 }
 
 // parseMessageTail tries to parse the word and arguments of a message as a controller request payload.
-func parseMessageTail(word string, args []string) (interface{}, error) {	
+func parseMessageTail(word string, args []string) (interface{}, error) {
 	switch word {
 	case "auto":
 		if len(args) != 1 {
@@ -66,7 +66,7 @@ func parseMessageTail(word string, args []string) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		return SetAutoModeRequest{ AutoMode: amode }, nil
+		return SetAutoModeRequest{AutoMode: amode}, nil
 	default:
 		return nil, fmt.Errorf("unknown word: %s", word)
 	}

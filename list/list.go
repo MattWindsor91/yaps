@@ -87,7 +87,7 @@ func (l *List) SetAutoMode(mode AutoMode) bool {
 	if mode == l.autoselect {
 		return false
 	}
-	
+
 	// If we've changed to shuffle mode, prepare the state for it.
 	if mode == AutoShuffle {
 		l.clearUsedHashes()

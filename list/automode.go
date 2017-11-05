@@ -55,4 +55,3 @@ func ParseAutoMode(s string) (AutoMode, error) {
 		return AutoOff, fmt.Errorf("invalid automode")
 	}
 }
-

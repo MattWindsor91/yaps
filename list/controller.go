@@ -88,7 +88,7 @@ func (c *Controller) Run() {
 		if !ok {
 			fmt.Println("FIXME: got bad request")
 		}
-		
+
 		c.handleRequest(rq)
 	}
 

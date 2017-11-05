@@ -40,7 +40,7 @@ func ExampleList_SetAutoMode() {
 
 	changedAgain := l.SetAutoMode(list.AutoShuffle)
 	fmt.Println(l.AutoMode(), changedAgain)
-	
+
 	// Output:
 	// off
 	// drop
