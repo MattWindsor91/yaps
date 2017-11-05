@@ -56,7 +56,7 @@ func parseMessage(m bifrost.Message) (*Request, error) {
 }
 
 // parseMessageTail tries to parse the word and arguments of a message as a controller request payload.
-func parseMessageTail(word string, args []string) (Requester, error) {	
+func parseMessageTail(word string, args []string) (interface{}, error) {	
 	switch word {
 	case "auto":
 		if len(args) != 1 {

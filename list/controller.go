@@ -5,6 +5,7 @@ package list
 // For the protocol used by the Controller, see 'messages.go'.
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -76,13 +77,19 @@ func (c *Controller) Run() {
 	}
 
 	for {
-		// TODO: recalculate client cases when forking
+		// TODO(@MattWindsor91): recalculate client cases when forking
 
 		_, value, ok := reflect.Select(cases)
 		if !ok {
 			break
 		}
-		value.Interface().(Request).Do(c.list)
+		// TODO(@MattWindsor91): properly handle if this isn't a Request
+		rq, ok := value.Interface().(Request)
+		if !ok {
+			fmt.Println("FIXME: got bad request")
+		}
+		
+		c.handleRequest(rq)
 	}
 
 	c.hangupClients()
@@ -99,4 +106,13 @@ func (c *Controller) hangupClients() {
 func (c *Controller) hangupClient(cl coclient) {
 	close(cl.tx)
 	delete(c.clients, cl)
+}
+
+// handleRequest handles a request.
+func (c *Controller) handleRequest(rq Request) {
+	// TODO(@MattWindsor91): send unicast responses back
+	switch body := rq.Body.(type) {
+	case SetAutoModeRequest:
+		c.list.SetAutoMode(body.AutoMode)
+	}
 }

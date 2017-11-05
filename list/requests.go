@@ -12,22 +12,13 @@ type RequestOrigin struct {
 	// TODO(CaptainHayashi): reply channel
 }
 
-// Requester is the interface for requests to a Controller.
-type Requester interface {
-	Do(list *List)
-}
-
 // Request is the base structure for requests to a Controller.
 type Request struct {
 	// Origin gives information about the requester.
 	Origin RequestOrigin
 
 	// Body gives the body of the request.
-	Body Requester
-}
-
-func (r Request) Do(list *List) {
-	r.Body.Do(list)
+	Body interface{}
 }
 
 // SetSelectRequest requests a selection change.
