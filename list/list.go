@@ -82,13 +82,19 @@ func (l *List) AutoMode() AutoMode {
 }
 
 // SetAutoMode changes the current autoselect mode for the given List.
-func (l *List) SetAutoMode(mode AutoMode) {
-	// If we've _just_ changed to shuffle mode, prepare the state for it.
-	if mode == AutoShuffle && l.autoselect != AutoShuffle {
+// It returns whether the automode has changed.
+func (l *List) SetAutoMode(mode AutoMode) bool {
+	if mode == l.autoselect {
+		return false
+	}
+	
+	// If we've changed to shuffle mode, prepare the state for it.
+	if mode == AutoShuffle {
 		l.clearUsedHashes()
 	}
 
 	l.autoselect = mode
+	return true
 }
 
 // elementWithIndex tries to find the linked list node with the given index.

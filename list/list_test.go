@@ -35,14 +35,18 @@ func ExampleList_SetAutoMode() {
 	l.SetAutoMode(list.AutoNext)
 	fmt.Println(l.AutoMode())
 
-	l.SetAutoMode(list.AutoShuffle)
-	fmt.Println(l.AutoMode())
+	changed := l.SetAutoMode(list.AutoShuffle)
+	fmt.Println(l.AutoMode(), changed)
 
+	changedAgain := l.SetAutoMode(list.AutoShuffle)
+	fmt.Println(l.AutoMode(), changedAgain)
+	
 	// Output:
 	// off
 	// drop
 	// next
-	// shuffle
+	// shuffle true
+	// shuffle false
 }
 
 // ExampleList_Selection tests List.Selection in an example style.
