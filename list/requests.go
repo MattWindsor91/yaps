@@ -30,6 +30,9 @@ type Request struct {
 	Body interface{}
 }
 
+// DumpRequest requests an information dump.
+type DumpRequest struct{}
+
 // SetSelectRequest requests a selection change.
 type SetSelectRequest struct {
 	// Index represents the index to select.

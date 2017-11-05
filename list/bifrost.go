@@ -11,14 +11,20 @@ import (
 
 // Bifrost is the type of adapters from list Controller clients to Bifrost.
 type Bifrost struct {
-	// client is the list Controller client.
-	client *Client
+	// reqConTx is the inward channel to which this adapter sends controller requests.
+	reqConTx chan<- Request
 
-	// responseTx is the channel to which this adapter sends responses.
-	responseTx chan<- bifrost.Message
+	// resConRx is the inward channel from which this adapter receives controller requests.
+	resConRx <-chan Response
 
-	// requestRx is the channel from which this adapter receives requests.
-	requestRx <-chan bifrost.Message
+	// resMsgTx is the outward channel to which this adapter sends response messages.
+	resMsgTx chan<- bifrost.Message
+
+	// reqMsgRx is the outward channel from which this adapter receives requests.
+	reqMsgRx <-chan bifrost.Message
+
+	// requestMap is the map of known Bifrost message words, and their parsers.
+	requestMap map[string]requestParser
 
 	// reply is the channel this adapter uses to service replies to requests it sends to the client.
 	reply chan Response
@@ -30,11 +36,16 @@ func NewBifrost(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifros
 	response := make(chan bifrost.Message)
 	request := make(chan bifrost.Message)
 	reply := make(chan Response)
+
+	// TODO(@MattWindsor91): when generalising, make the tables get passed in.
+
 	bifrost := Bifrost{
-		client:     client,
-		responseTx: response,
-		requestRx:  request,
+		reqConTx:   client.Tx,
+		resConRx:   client.Rx,
+		resMsgTx:   response,
+		reqMsgRx:   request,
 		reply:      reply,
+		requestMap: newRequestMap(),
 	}
 
 	return &bifrost, request, response
@@ -44,30 +55,39 @@ func NewBifrost(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifros
 func (b *Bifrost) Run() {
 	for {
 		select {
-		case rq := <-b.requestRx:
+		case rq := <-b.reqMsgRx:
 			b.handleRequest(rq)
 		case rs := <-b.reply:
 			b.handleResponse(rs)
-		case rs := <-b.client.Rx:
+		case rs := <-b.resConRx:
 			b.handleResponse(rs)
 		}
 	}
 }
 
+//
+// Request parsing
+//
+
 // handleRequest handles the request message rq.
 func (b *Bifrost) handleRequest(rq bifrost.Message) {
 	request, err := b.fromMessage(rq)
 	if err != nil {
-		b.responseTx <- *errorToMessage(rq.Tag(), err)
+		b.resMsgTx <- *errorToMessage(rq.Tag(), err)
 		return
 	}
 
-	b.client.Tx <- *request
+	b.reqConTx <- *request
 }
 
 // fromMessage tries to parse a message as a controller request.
 func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
-	requester, err := parseMessageTail(m.Word(), m.Args())
+	parser, ok := b.requestMap[m.Word()]
+	if !ok {
+		return nil, fmt.Errorf("unknown word: %s", m.Word())
+	}
+
+	rbody, err := parser(m.Args())
 	if err != nil {
 		return nil, err
 	}
@@ -78,37 +98,58 @@ func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
 	}
 	request := Request{
 		Origin: origin,
-		Body:   requester,
+		Body:   rbody,
 	}
 
 	return &request, nil
 }
 
-// parseMessageTail tries to parse the word and arguments of a message as a controller request payload.
-func parseMessageTail(word string, args []string) (interface{}, error) {
-	switch word {
-	case "auto":
-		if len(args) != 1 {
-			return nil, fmt.Errorf("bad arity")
-		}
-		amode, err := ParseAutoMode(args[0])
-		if err != nil {
-			return nil, err
-		}
-		return SetAutoModeRequest{AutoMode: amode}, nil
-	default:
-		return nil, fmt.Errorf("unknown word: %s", word)
+// requestParser is the type of request parsers.
+type requestParser func([]string) (interface{}, error)
+
+// newRequestMap builds the request parser map.
+func newRequestMap() map[string]requestParser {
+	return map[string]requestParser{
+		"dump": parseDumpMessage,
+		"auto": parseAutoMessage,
 	}
 }
 
-// handleResponse handles a response rs from the client.
+// parseDumpMessage tries to parse a 'dump' message.
+func parseDumpMessage(args []string) (interface{}, error) {
+	if len(args) != 0 {
+		return nil, fmt.Errorf("bad arity")
+	}
+
+	return DumpRequest{}, nil
+}
+
+// parseAutoMessage tries to parse an 'auto' message.
+func parseAutoMessage(args []string) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("bad arity")
+	}
+
+	amode, err := ParseAutoMode(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return SetAutoModeRequest{AutoMode: amode}, nil
+}
+
+//
+// Response emitting
+//
+
+// handleResponse handles a controller response rs.
 func (b *Bifrost) handleResponse(rs Response) {
 	response, err := toMessage(rs)
 	if err != nil {
 		fmt.Println("internal message emit error:", err)
 		return
 	}
-	b.responseTx <- *response
+	b.resMsgTx <- *response
 }
 
 // toMessage tries to convert a response rs into a Bifrost message.

@@ -102,37 +102,71 @@ func (c *Controller) hangupClient(cl coclient) {
 	delete(c.clients, cl)
 }
 
+//
+// State emitting response bodies
+//
+
+func (c *Controller) autoMode() AutoModeResponse {
+	return AutoModeResponse{AutoMode: c.list.AutoMode()}
+}
+
+//
+// Request handling
+//
+
 // handleRequest handles a request.
 func (c *Controller) handleRequest(rq Request) {
-	// TODO(@MattWindsor91): send unicast responses back
+	var err error
+
+	o := rq.Origin
 	switch body := rq.Body.(type) {
+	case DumpRequest:
+		err = c.handleDumpRequest(o, body)
 	case SetAutoModeRequest:
 		if c.list.SetAutoMode(body.AutoMode) {
-			c.broadcast(AutoModeResponse{AutoMode: c.list.AutoMode()})
+			c.broadcast(c.autoMode())
 		}
 	}
 
 	ack := AckResponse{
-		Message: rq.Origin.Message,
-		Err:     nil,
+		Message: o.Message,
+		Err:     err,
 	}
-	c.reply(rq, ack)
+	c.reply(o, ack)
 }
 
-// reply sends a unicast response with body rbody to the origin of request rq.
-func (c *Controller) reply(rq Request, rbody interface{}) {
-	origin := rq.Origin
+// handleDumpRequest handles a dump with origin o and body b.
+func (c *Controller) handleDumpRequest(o RequestOrigin, b DumpRequest) error {
+	// SPEC: see https://universityradioyork.github.io/baps3-spec/protocol/roles/list.html#_dump_format
+	c.reply(o, c.autoMode())
+	// TODO(@MattWindsor91): other items in dump
+
+	// Dump requests never fail
+	return nil
+}
+
+//
+// Responding
+//
+
+// reply sends a unicast response with body rbody to the request origin to.
+func (c *Controller) reply(to RequestOrigin, rbody interface{}) {
 	reply := Response{
 		Broadcast: false,
-		Origin:    &origin,
+		Origin:    &to,
 		Body:      rbody,
 	}
-	origin.ReplyTx <- reply
+
+	to.ReplyTx <- reply
 }
 
 // broadcast sends a broadcast response with body rbody to all clients.
 func (c *Controller) broadcast(rbody interface{}) {
-	response := Response{Broadcast: true, Origin: nil, Body: rbody}
+	response := Response{
+		Broadcast: true,
+		Origin:    nil,
+		Body:      rbody,
+	}
 
 	for cl := range c.clients {
 		cl.tx <- response
