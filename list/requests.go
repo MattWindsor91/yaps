@@ -9,12 +9,16 @@ package list
 // - a parser from messages in 'bifrost.go';
 // - an emitter to messages in 'bifrost.go'.
 
+import "github.com/UniversityRadioYork/baps3d/bifrost"
+
 // RequestOrigin is the structure identifying where a request originated.
 type RequestOrigin struct {
-	// Tag represents the tag of the request, if applicable.
-	Tag string
+	// Message represents the Bifrost message from which we parsed the message.
+	// If there was no Bifrost message, this will be nil.
+	Message *bifrost.Message
 
-	// TODO(CaptainHayashi): reply channel
+	// ReplyTx is the channel any unicast responses will be sent down.
+	ReplyTx chan<- Response
 }
 
 // Request is the base structure for requests to a Controller.

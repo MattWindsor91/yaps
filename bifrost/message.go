@@ -13,6 +13,9 @@ const (
 	// TagBcast is the tag used for broadcasts.
 	TagBcast string = "!"
 
+	// TagUnknown is the tag used for when we don't know the right tag to use.
+	TagUnknown string = "?"
+
 	// - Requests
 
 	// - Responses

@@ -9,16 +9,16 @@ import (
 )
 
 type Console struct {
-	requestTx chan<- bifrost.Message
+	requestTx  chan<- bifrost.Message
 	responseRx <-chan bifrost.Message
-	in   *bifrost.Tokeniser
+	in         *bifrost.Tokeniser
 }
 
 func New(requestTx chan<- bifrost.Message, responseRx <-chan bifrost.Message) *Console {
 	return &Console{
-		requestTx: requestTx,
+		requestTx:  requestTx,
 		responseRx: responseRx,
-		in: bifrost.NewTokeniser(os.Stdin),
+		in:         bifrost.NewTokeniser(os.Stdin),
 	}
 }
 

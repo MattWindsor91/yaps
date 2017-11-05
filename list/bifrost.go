@@ -17,8 +17,11 @@ type Bifrost struct {
 	// responseTx is the channel to which this adapter sends responses.
 	responseTx chan<- bifrost.Message
 
-	// requestRx is the channel to which this adapter sends requests.
+	// requestRx is the channel from which this adapter receives requests.
 	requestRx <-chan bifrost.Message
+
+	// reply is the channel this adapter uses to service replies to requests it sends to the client.
+	reply chan Response
 }
 
 // NewBifrost wraps client inside a Bifrost adapter.
@@ -26,7 +29,15 @@ type Bifrost struct {
 func NewBifrost(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message) {
 	response := make(chan bifrost.Message)
 	request := make(chan bifrost.Message)
-	return &Bifrost{client: client, responseTx: response, requestRx: request}, request, response
+	reply := make(chan Response)
+	bifrost := Bifrost{
+		client:     client,
+		responseTx: response,
+		requestRx:  request,
+		reply:      reply,
+	}
+
+	return &bifrost, request, response
 }
 
 // Run runs the main body of the Bifrost adapter.
@@ -34,34 +45,43 @@ func (b *Bifrost) Run() {
 	for {
 		select {
 		case rq := <-b.requestRx:
-			request, err := fromMessage(rq)
-			if err != nil {
-				b.responseTx <- *errorToMessage(rq.Tag(), err)
-			} else {
-				b.client.Tx <- *request
-			}
+			b.handleRequest(rq)
+		case rs := <-b.reply:
+			b.handleResponse(rs)
 		case rs := <-b.client.Rx:
-			response, err := toMessage(rs)
-			if err != nil {
-				fmt.Println("internal message emit error:", err)
-			} else {
-				b.responseTx <- *response
-			}
+			b.handleResponse(rs)
 		}
 	}
 }
 
+// handleRequest handles the request message rq.
+func (b *Bifrost) handleRequest(rq bifrost.Message) {
+	request, err := b.fromMessage(rq)
+	if err != nil {
+		b.responseTx <- *errorToMessage(rq.Tag(), err)
+		return
+	}
+
+	b.client.Tx <- *request
+}
+
 // fromMessage tries to parse a message as a controller request.
-func fromMessage(m bifrost.Message) (*Request, error) {
+func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
 	requester, err := parseMessageTail(m.Word(), m.Args())
 	if err != nil {
 		return nil, err
 	}
 
-	return &Request{
-		Origin: RequestOrigin{Tag: m.Tag()},
+	origin := RequestOrigin{
+		Message: &m,
+		ReplyTx: b.reply,
+	}
+	request := Request{
+		Origin: origin,
 		Body:   requester,
-	}, nil
+	}
+
+	return &request, nil
 }
 
 // parseMessageTail tries to parse the word and arguments of a message as a controller request payload.
@@ -81,20 +101,44 @@ func parseMessageTail(word string, args []string) (interface{}, error) {
 	}
 }
 
-// toMessage tries to convert a response rs into a Bifrost message sent to tag t..
+// handleResponse handles a response rs from the client.
+func (b *Bifrost) handleResponse(rs Response) {
+	response, err := toMessage(rs)
+	if err != nil {
+		fmt.Println("internal message emit error:", err)
+		return
+	}
+	b.responseTx <- *response
+}
+
+// toMessage tries to convert a response rs into a Bifrost message.
 func toMessage(rs Response) (*bifrost.Message, error) {
 	tag := rs.Tag()
-	
+
 	switch r := rs.Body.(type) {
 	case AutoModeResponse:
 		return bifrost.NewMessage(tag, "AUTO").AddArg(r.AutoMode.String()), nil
+	case AckResponse:
+		return ackToMessage(tag, r)
 	default:
 		return nil, fmt.Errorf("response with no message equivalent: %A", r)
 	}
 }
 
+// ackToMessage converts an ACK response r into a Bifrost message sent to tag t.
+// If the ACK had an error, it is propagated down.
+func ackToMessage(t string, r AckResponse) (*bifrost.Message, error) {
+	if r.Err != nil {
+		return nil, r.Err
+	}
+
+	// SPEC: The wording here is specific.
+	// SPEC: See https://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
+	return bifrost.NewMessage(t, "ACK").AddArg("OK").AddArg("success"), nil
+}
+
 // errorToMessage converts the error e to a Bifrost message sent to tag t.
 func errorToMessage(t string, e error) *bifrost.Message {
 	// TODO(@MattWindsor91): figure out whether e is a WHAT or a FAIL.
-	return bifrost.NewMessage(t, "WHAT").AddArg(e.Error())
+	return bifrost.NewMessage(t, bifrost.RsAck).AddArg("WHAT").AddArg(e.Error())
 }

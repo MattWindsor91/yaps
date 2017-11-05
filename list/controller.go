@@ -111,12 +111,29 @@ func (c *Controller) handleRequest(rq Request) {
 			c.broadcast(AutoModeResponse{AutoMode: c.list.AutoMode()})
 		}
 	}
+
+	ack := AckResponse{
+		Message: rq.Origin.Message,
+		Err:     nil,
+	}
+	c.reply(rq, ack)
+}
+
+// reply sends a unicast response with body rbody to the origin of request rq.
+func (c *Controller) reply(rq Request, rbody interface{}) {
+	origin := rq.Origin
+	reply := Response{
+		Broadcast: false,
+		Origin:    &origin,
+		Body:      rbody,
+	}
+	origin.ReplyTx <- reply
 }
 
 // broadcast sends a broadcast response with body rbody to all clients.
 func (c *Controller) broadcast(rbody interface{}) {
-	response := Response{ Broadcast: true, Origin: nil, Body: rbody }
-	
+	response := Response{Broadcast: true, Origin: nil, Body: rbody}
+
 	for cl := range c.clients {
 		cl.tx <- response
 	}
