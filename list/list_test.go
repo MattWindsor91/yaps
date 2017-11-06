@@ -72,3 +72,30 @@ func ExampleList_Selection() {
 	// -1
 	// 0
 }
+
+// ExampleList_Freeze tests List.Freeze in an example style.
+func ExampleList_Freeze() {
+	l := list.New()
+
+	if err := l.Add(list.NewTrack("abc", "foo.mp3"), 0); err != nil {
+		panic(err)
+	}
+	if err := l.Add(list.NewTrack("xyz", "bar.mp3"), 1); err != nil {
+		panic(err)
+	}
+
+	items := l.Freeze()
+
+	// 'items' will remain the same even if we add a new item.
+	if err := l.Add(list.NewText("def", "baz"), 1); err != nil {
+		panic(err)
+	}
+
+	for _, item := range items {
+		fmt.Println(item.Hash())
+	}
+
+	// Output:
+	// abc
+	// xyz
+}

@@ -185,6 +185,21 @@ func (l *List) Select(index int, hash string) (changed bool, err error) {
 	return
 }
 
+// Freeze copies the current list to a slice.
+func (l *List) Freeze() []Item {
+	// TODO(@MattWindsor91): inefficient
+	len := l.list.Len()
+	frozen := make([]Item, len)
+
+	e := l.list.Front()
+	for i := 0; i < len; i++ {
+		frozen[i] = *(e.Value.(*Item))
+		e = e.Next()
+	}
+
+	return frozen
+}
+
 // Next advances the selection according to the automode.
 // It returns the new selection and a Boolean stating whether the selection changed.
 func (l *List) Next() (int, bool) {
