@@ -48,6 +48,16 @@ func NewText(hash, contents string) *Item {
 	return &Item{hash, contents, ItemText}
 }
 
+// Type returns the type of the Item.
+func (i *Item) Type() ItemType {
+	return i.itype
+}
+
+// Payload returns the payload of the Item.
+func (i *Item) Payload() string {
+	return i.payload
+}
+
 // Hash returns the hash of the Item.
 func (i *Item) Hash() string {
 	return i.hash

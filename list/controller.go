@@ -106,8 +106,14 @@ func (c *Controller) hangupClient(cl coclient) {
 // State emitting response bodies
 //
 
+// automode returns c's list's automode as a response.
 func (c *Controller) autoMode() AutoModeResponse {
 	return AutoModeResponse{AutoMode: c.list.AutoMode()}
+}
+
+// freeze returns c's list's frozen representation as a response.
+func (c *Controller) freeze() ListDumpResponse {
+	return c.list.Freeze()
 }
 
 //
@@ -128,10 +134,7 @@ func (c *Controller) handleRequest(rq Request) {
 		}
 	}
 
-	ack := AckResponse{
-		Message: o.Message,
-		Err:     err,
-	}
+	ack := AckResponse{err}
 	c.reply(o, ack)
 }
 
@@ -139,6 +142,7 @@ func (c *Controller) handleRequest(rq Request) {
 func (c *Controller) handleDumpRequest(o RequestOrigin, b DumpRequest) error {
 	// SPEC: see https://universityradioyork.github.io/baps3-spec/protocol/roles/list.html#_dump_format
 	c.reply(o, c.autoMode())
+	c.reply(o, c.freeze())
 	// TODO(@MattWindsor91): other items in dump
 
 	// Dump requests never fail

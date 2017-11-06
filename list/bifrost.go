@@ -5,6 +5,7 @@ package list
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
@@ -144,38 +145,82 @@ func parseAutoMessage(args []string) (interface{}, error) {
 
 // handleResponse handles a controller response rs.
 func (b *Bifrost) handleResponse(rs Response) {
-	response, err := toMessage(rs)
-	if err != nil {
-		fmt.Println("internal message emit error:", err)
-		return
-	}
-	b.resMsgTx <- *response
-}
-
-// toMessage tries to convert a response rs into a Bifrost message.
-func toMessage(rs Response) (*bifrost.Message, error) {
 	tag := rs.Tag()
 
+	var err error
+
 	switch r := rs.Body.(type) {
-	case AutoModeResponse:
-		return bifrost.NewMessage(tag, "AUTO").AddArg(r.AutoMode.String()), nil
 	case AckResponse:
-		return ackToMessage(tag, r)
+		err = b.handleAck(tag, r)
+	case AutoModeResponse:
+		err = b.handleAutoMode(tag, r)
+	case ListDumpResponse:
+		err = b.handleListDump(tag, r)
+	case ListItemResponse:
+		err = b.handleListItem(tag, r)
 	default:
-		return nil, fmt.Errorf("response with no message equivalent: %v", r)
+		err = fmt.Errorf("response with no message equivalent: %v", r)
+	}
+
+	if err != nil {
+		// TODO(@MattWindsor91): propagate?
+		fmt.Println("response error: %s", err.Error())
 	}
 }
 
-// ackToMessage converts an ACK response r into a Bifrost message sent to tag t.
+// handleAck handles converting an AckResponse r into messages for tag t.
 // If the ACK had an error, it is propagated down.
-func ackToMessage(t string, r AckResponse) (*bifrost.Message, error) {
+func (b *Bifrost) handleAck(t string, r AckResponse) error {
 	if r.Err != nil {
-		return nil, r.Err
+		return r.Err
 	}
 
 	// SPEC: The wording here is specific.
 	// SPEC: See https://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
-	return bifrost.NewMessage(t, "ACK").AddArg("OK").AddArg("success"), nil
+	b.resMsgTx <- *bifrost.NewMessage(t, bifrost.RsAck).AddArg("OK").AddArg("success")
+	return nil
+}
+
+// handleAutoMode handles converting an AutoModeResponse r into messages for tag t.
+func (b *Bifrost) handleAutoMode(t string, r AutoModeResponse) error {
+	b.resMsgTx <- *bifrost.NewMessage(t, "AUTO").AddArg(r.AutoMode.String())
+	return nil
+}
+
+// handleListDump handles converting an ListDumpResponse r into messages for tag t.
+func (b *Bifrost) handleListDump(t string, r ListDumpResponse) error {
+	b.resMsgTx <- *bifrost.NewMessage(t, "COUNTL").AddArg(strconv.Itoa(len(r)))
+
+	// The next bit is the same as if we were loading the items--
+	// so we reuse the logic.
+	for i, item := range r {
+		ilr := ListItemResponse{
+			Index: i,
+			Item:  item,
+		}
+
+		if err := b.handleListItem(t, ilr); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// handleListItem handles converting an ListItemResponse r into messages for tag t.
+func (b *Bifrost) handleListItem(t string, r ListItemResponse) error {
+	var word string
+	switch r.Item.Type() {
+	case ItemTrack:
+		word = "floadl"
+	case ItemText:
+		word = "tloadl"
+	default:
+		return fmt.Errorf("unknown item type %v", r.Item.Type())
+	}
+
+	b.resMsgTx <- *bifrost.NewMessage(t, word).AddArg(strconv.Itoa(r.Index)).AddArg(r.Item.Hash()).AddArg(r.Item.Payload())
+	return nil
 }
 
 // errorToMessage converts the error e to a Bifrost message sent to tag t.

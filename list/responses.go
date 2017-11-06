@@ -39,17 +39,25 @@ func (r *Response) Tag() string {
 	return r.Origin.Message.Tag()
 }
 
+// AckResponse announces that a command has finished processing.
+type AckResponse struct {
+	// Err, if non-nil, is the error encountered during command processing.
+	Err error
+}
+
 // AutoModeResponse announces a change in AutoMode.
 type AutoModeResponse struct {
 	// AutoMode represents the new AutoMode.
 	AutoMode AutoMode
 }
 
-// AckResponse announces that a command has finished processing.
-type AckResponse struct {
-	// Message is the message that is being acknowledged, if any.
-	Message *bifrost.Message
+// ListDumpResponse announces a snapshot of the entire list.
+type ListDumpResponse []Item
 
-	// Err, if non-nil, is the error encountered during command processing.
-	Err error
+// ListItemResponse announces the presence of a single list item.
+type ListItemResponse struct {
+	// Index is the index of the item in the list.
+	Index int
+	// Item is the item itself.
+	Item Item
 }

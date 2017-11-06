@@ -92,10 +92,10 @@ func ExampleList_Freeze() {
 	}
 
 	for _, item := range items {
-		fmt.Println(item.Hash())
+		fmt.Println(item.Hash(), item.Type(), item.Payload())
 	}
 
 	// Output:
-	// abc
-	// xyz
+	// abc track foo.mp3
+	// xyz track bar.mp3
 }
