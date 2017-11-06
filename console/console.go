@@ -4,19 +4,23 @@ package console
 import (
 	"bytes"
 	"fmt"
-	"os"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/chzyer/readline"
 )
 
 const (
-	// promptNormal is the normal prompt used by the console.
-	promptNormal = "$ "
-	// promptContinue is the prompt used when in the middle of a quoted Bifrost message word.
+	// Console request prompts
+	// (Must include trailing space)
+	promptNormal   = "$ "
 	promptContinue = "> "
+	// Console response prefixes
+	// (Must _not_ include trailing space)
+	prefixMessage = "[R]"
+	prefixError   = "[!]"
 )
 
+// Console provides a readline-style console for sending Bifrost messages to a controller.
 type Console struct {
 	requestTx  chan<- bifrost.Message
 	responseRx <-chan bifrost.Message
@@ -51,10 +55,11 @@ func (c *Console) RunRx() {
 	for m := range c.responseRx {
 		mbytes, err := m.Pack()
 		if err != nil {
-			fmt.Println("-> rx error:", err)
-			continue
+			c.outputError(err)
+			return
 		}
-		os.Stdout.Write(mbytes)
+
+		c.outputMessage(mbytes)
 	}
 }
 
@@ -63,9 +68,9 @@ func (c *Console) RunRx() {
 func (c *Console) RunTx() {
 	for {
 		string, terr := c.rl.Readline()
+
 		if terr != nil {
-			// TODO(@MattWindsor91): send to rx
-			fmt.Println("-> got error:", terr)
+			c.outputError(terr)
 			return
 		}
 
@@ -102,10 +107,33 @@ func (c *Console) tokenise(bytes []byte) bool {
 func (c *Console) txMessage(line []string) {
 	msg, merr := bifrost.LineToMessage(line)
 	if merr != nil {
-		// TODO(@MattWindsor91): send to rx
-		fmt.Println("-> invalid message:", merr)
+		c.outputError(merr)
 		return
 	}
 
 	c.requestTx <- *msg
+}
+
+// outputMessage outputs a packed message to stdout.
+func (c *Console) outputMessage(mbytes []byte) {
+	var err error
+	buf := bytes.NewBufferString(prefixMessage)
+	if _, err = buf.WriteRune(' '); err != nil {
+		c.outputError(err)
+		return
+	}
+	// mbytes will include the newline.
+	if _, err = buf.Write(mbytes); err != nil {
+		c.outputError(err)
+		return
+	}
+	if _, err = buf.WriteTo(c.rl.Stdout()); err != nil {
+		c.outputError(err)
+		return
+	}
+}
+
+// outputError prints an error e to stderr.
+func (c *Console) outputError(e error) {
+	fmt.Fprintln(c.rl.Stderr(), prefixError, e.Error())
 }
