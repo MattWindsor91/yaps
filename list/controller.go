@@ -112,7 +112,7 @@ func (c *Controller) autoMode() AutoModeResponse {
 }
 
 // freeze returns c's list's frozen representation as a response.
-func (c *Controller) freeze() ListDumpResponse {
+func (c *Controller) freeze() FreezeResponse {
 	return c.list.Freeze()
 }
 

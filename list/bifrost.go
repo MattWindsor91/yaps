@@ -154,17 +154,17 @@ func (b *Bifrost) handleResponse(rs Response) {
 		err = b.handleAck(tag, r)
 	case AutoModeResponse:
 		err = b.handleAutoMode(tag, r)
-	case ListDumpResponse:
-		err = b.handleListDump(tag, r)
-	case ListItemResponse:
-		err = b.handleListItem(tag, r)
+	case FreezeResponse:
+		err = b.handleFreeze(tag, r)
+	case ItemResponse:
+		err = b.handleItem(tag, r)
 	default:
 		err = fmt.Errorf("response with no message equivalent: %v", r)
 	}
 
 	if err != nil {
 		// TODO(@MattWindsor91): propagate?
-		fmt.Println("response error: %s", err.Error())
+		fmt.Println("response error:", err.Error())
 	}
 }
 
@@ -187,19 +187,19 @@ func (b *Bifrost) handleAutoMode(t string, r AutoModeResponse) error {
 	return nil
 }
 
-// handleListDump handles converting an ListDumpResponse r into messages for tag t.
-func (b *Bifrost) handleListDump(t string, r ListDumpResponse) error {
+// handleFreeze handles converting an FreezeResponse r into messages for tag t.
+func (b *Bifrost) handleFreeze(t string, r FreezeResponse) error {
 	b.resMsgTx <- *bifrost.NewMessage(t, "COUNTL").AddArg(strconv.Itoa(len(r)))
 
 	// The next bit is the same as if we were loading the items--
 	// so we reuse the logic.
 	for i, item := range r {
-		ilr := ListItemResponse{
+		ilr := ItemResponse{
 			Index: i,
 			Item:  item,
 		}
 
-		if err := b.handleListItem(t, ilr); err != nil {
+		if err := b.handleItem(t, ilr); err != nil {
 			return err
 		}
 	}
@@ -207,8 +207,8 @@ func (b *Bifrost) handleListDump(t string, r ListDumpResponse) error {
 	return nil
 }
 
-// handleListItem handles converting an ListItemResponse r into messages for tag t.
-func (b *Bifrost) handleListItem(t string, r ListItemResponse) error {
+// handleItem handles converting an ItemResponse r into messages for tag t.
+func (b *Bifrost) handleItem(t string, r ItemResponse) error {
 	var word string
 	switch r.Item.Type() {
 	case ItemTrack:

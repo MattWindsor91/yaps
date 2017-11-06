@@ -51,11 +51,11 @@ type AutoModeResponse struct {
 	AutoMode AutoMode
 }
 
-// ListDumpResponse announces a snapshot of the entire list.
-type ListDumpResponse []Item
+// FreezeResponse announces a snapshot of the entire list.
+type FreezeResponse []Item
 
-// ListItemResponse announces the presence of a single list item.
-type ListItemResponse struct {
+// ItemResponse announces the presence of a single list item.
+type ItemResponse struct {
 	// Index is the index of the item in the list.
 	Index int
 	// Item is the item itself.
