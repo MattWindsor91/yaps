@@ -95,14 +95,14 @@ func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
 		return nil, err
 	}
 
-	return makeRequest(rbody, &m, b.reply), nil
+	return makeRequest(rbody, m.Tag(), b.reply), nil
 }
 
-// makeRequest creates a request with body rbody, original message m, and reply channel rch.
+// makeRequest creates a request with body rbody, tag tag, and reply channel rch.
 // m may be nil.
-func makeRequest(rbody interface{}, m *bifrost.Message, rch chan<- Response) *Request {
+func makeRequest(rbody interface{}, tag string, rch chan<- Response) *Request {
 	origin := RequestOrigin{
-		Message: m,
+		Tag:     tag,
 		ReplyTx: rch,
 	}
 	request := Request{
@@ -157,7 +157,7 @@ func (b *Bifrost) handleNewClientResponses() {
 
 	// TODO(@MattWindsor91): OHAI
 	// TODO(@MattWindsor91): IAMA
-	b.reqConTx <- *makeRequest(DumpRequest{}, nil, ncreply)
+	b.reqConTx <- *makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)
 	b.handleResponsesUntilAck(ncreply)
 }
 
@@ -174,7 +174,7 @@ func (b *Bifrost) handleResponsesUntilAck(c <-chan Response) {
 
 // handleResponse handles a controller response rs.
 func (b *Bifrost) handleResponse(rs Response) {
-	tag := rs.Tag()
+	tag := rs.Origin.Tag
 
 	var err error
 

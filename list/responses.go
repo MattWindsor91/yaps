@@ -9,8 +9,6 @@ package list
 // - a parser from messages in 'bifrost.go';
 // - an emitter to messages in 'bifrost.go'.
 
-import "github.com/UniversityRadioYork/baps3d/bifrost"
-
 // Response is the base structure for responses from a Controller.
 type Response struct {
 	// Broadcast gives whether this is a broadcast response.
@@ -22,21 +20,6 @@ type Response struct {
 
 	// Body gives the body of the response.
 	Body interface{}
-}
-
-// Tag gets the correct tag for Response r.
-func (r *Response) Tag() string {
-	if r.Broadcast {
-		return bifrost.TagBcast
-	}
-	if r.Origin == nil {
-		return bifrost.TagUnknown
-	}
-	if r.Origin.Message == nil {
-		return bifrost.TagUnknown
-	}
-
-	return r.Origin.Message.Tag()
 }
 
 // AckResponse announces that a command has finished processing.
