@@ -17,6 +17,10 @@ type Controller struct {
 	// clients is the list of Controller-facing client channel pairs.
 	// Each client that subscribes gets a Client struct with the other sides.
 	clients map[coclient]struct{}
+
+	// running is the internal is-running flag.
+	// When this is set to false, the controller loop will exit.
+	running bool
 }
 
 // Client is the type of external Controller client handles.
@@ -70,7 +74,8 @@ func (c *Controller) Run() {
 		i++
 	}
 
-	for {
+	c.running = true
+	for c.running {
 		// TODO(@MattWindsor91): recalculate client cases when forking
 
 		_, value, ok := reflect.Select(cases)
@@ -130,6 +135,8 @@ func (c *Controller) handleRequest(rq Request) {
 		err = c.handleRoleRequest(o, body)
 	case DumpRequest:
 		err = c.handleDumpRequest(o, body)
+	case ShutdownRequest:
+		err = c.handleShutdownRequest(o, body)
 	case SetAutoModeRequest:
 		if c.list.SetAutoMode(body.AutoMode) {
 			c.broadcast(c.autoMode())
@@ -156,6 +163,13 @@ func (c *Controller) handleDumpRequest(o RequestOrigin, b DumpRequest) error {
 	// TODO(@MattWindsor91): other items in dump
 
 	// Dump requests never fail
+	return nil
+}
+
+// handleShutdownRequest handles a shutdown request with origin o and body b.
+func (c *Controller) handleShutdownRequest(o RequestOrigin, b ShutdownRequest) error {
+	// We don't do the shutdown here, but instead when we go round the main loop.
+	c.running = false
 	return nil
 }
 

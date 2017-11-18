@@ -34,6 +34,11 @@ type RoleRequest struct{}
 // DumpRequest requests an information dump.
 type DumpRequest struct{}
 
+// Shutdown requests a shutdown.
+// The Controller will not reply, other than immediately sending an AckResponse.
+// The shutdown is complete when the Controller closes this client's response channel.
+type ShutdownRequest struct{}
+
 // SetSelectRequest requests a selection change.
 type SetSelectRequest struct {
 	// Index represents the index to select.

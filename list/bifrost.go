@@ -62,16 +62,29 @@ func NewBifrost(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifros
 // It will immediately send the new client responses to the response channel.
 func (b *Bifrost) Run() {
 	b.handleNewClientResponses()
+MainLoop:
 	for {
 		select {
-		case rq := <-b.reqMsgRx:
+		case rq, ok := <-b.reqMsgRx:
+			// Closing the message channel is how the client tells us it has disconnected
+			if !ok {
+				break MainLoop
+			}
 			b.handleRequest(rq)
 		case rs := <-b.reply:
 			b.handleResponse(rs)
-		case rs := <-b.resConRx:
+		case rs, ok := <-b.resConRx:
+			// Closing the response channel is how the controller tells us it has shutdown
+			if !ok {
+				break MainLoop
+			}
 			b.handleResponse(rs)
 		}
 	}
+
+	// Don't shut down the controller: it might have more clients.
+	close(b.reqConTx)
+	close(b.resMsgTx)
 }
 
 //
