@@ -126,6 +126,8 @@ func (c *Controller) handleRequest(rq Request) {
 
 	o := rq.Origin
 	switch body := rq.Body.(type) {
+	case RoleRequest:
+		err = c.handleRoleRequest(o, body)
 	case DumpRequest:
 		err = c.handleDumpRequest(o, body)
 	case SetAutoModeRequest:
@@ -136,6 +138,14 @@ func (c *Controller) handleRequest(rq Request) {
 
 	ack := AckResponse{err}
 	c.reply(o, ack)
+}
+
+// handleRoleRequest handles a role request with origin o and body b.
+func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
+	c.reply(o, RoleResponse{Role: "list"})
+
+	// Role requests never fail
+	return nil
 }
 
 // handleDumpRequest handles a dump with origin o and body b.

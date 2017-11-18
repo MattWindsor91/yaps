@@ -28,6 +28,12 @@ type AckResponse struct {
 	Err error
 }
 
+// RoleResponse announces the Controller's Bifrost role.
+type RoleResponse struct {
+	// Role is the role of the Controller.
+	Role string
+}
+
 // AutoModeResponse announces a change in AutoMode.
 type AutoModeResponse struct {
 	// AutoMode represents the new AutoMode.

@@ -27,6 +27,10 @@ type Request struct {
 	Body interface{}
 }
 
+// RoleRequest requests the Bifrost role of the connected Controller.
+// It will result in a RoleResponse reply.
+type RoleRequest struct{}
+
 // DumpRequest requests an information dump.
 type DumpRequest struct{}
 
@@ -40,8 +44,7 @@ type SetSelectRequest struct {
 }
 
 // NextRequest requests a selection skip.
-type NextRequest struct {
-}
+type NextRequest struct{}
 
 // SetAutoModeRequest requests an automode change.
 type SetAutoModeRequest struct {

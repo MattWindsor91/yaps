@@ -10,6 +10,12 @@ import (
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
 
+// pversion is the Bifrost semantic protocol version.
+var pversion = "bifrost-0.0.0"
+
+// sversion is the Baps3D semantic server version.
+var sversion = "baps3d-0.0.0"
+
 // Bifrost is the type of adapters from list Controller clients to Bifrost.
 type Bifrost struct {
 	// reqConTx is the inward channel to which this adapter sends controller requests.
@@ -152,11 +158,15 @@ func parseAutoMessage(args []string) (interface{}, error) {
 
 // handleNewClientResponses handles the new client responses (OHAI, IAMA, etc).
 func (b *Bifrost) handleNewClientResponses() {
+	// SPEC: see http://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
+
+	// OHAI is a Bifrost-ism, so we don't bother asking the Client about it
+	b.resMsgTx <- *bifrost.NewMessage(bifrost.TagBcast, bifrost.RsOhai).AddArg(pversion).AddArg(sversion)
+
 	// We don't use b.reply here, because we want to suppress ACK.
 	ncreply := make(chan Response)
-
-	// TODO(@MattWindsor91): OHAI
-	// TODO(@MattWindsor91): IAMA
+	b.reqConTx <- *makeRequest(RoleRequest{}, bifrost.TagBcast, ncreply)
+	b.handleResponsesUntilAck(ncreply)
 	b.reqConTx <- *makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)
 	b.handleResponsesUntilAck(ncreply)
 }
@@ -181,6 +191,8 @@ func (b *Bifrost) handleResponse(rs Response) {
 	switch r := rs.Body.(type) {
 	case AckResponse:
 		err = b.handleAck(tag, r)
+	case RoleResponse:
+		err = b.handleRole(tag, r)
 	case AutoModeResponse:
 		err = b.handleAutoMode(tag, r)
 	case FreezeResponse:
@@ -210,13 +222,19 @@ func (b *Bifrost) handleAck(t string, r AckResponse) error {
 	return nil
 }
 
+// handleRole handles converting a RoleResponse r into messages for tag t.
+func (b *Bifrost) handleRole(t string, r RoleResponse) error {
+	b.resMsgTx <- *bifrost.NewMessage(t, "IAMA").AddArg(r.Role)
+	return nil
+}
+
 // handleAutoMode handles converting an AutoModeResponse r into messages for tag t.
 func (b *Bifrost) handleAutoMode(t string, r AutoModeResponse) error {
 	b.resMsgTx <- *bifrost.NewMessage(t, "AUTO").AddArg(r.AutoMode.String())
 	return nil
 }
 
-// handleFreeze handles converting an FreezeResponse r into messages for tag t.
+// handleFreeze handles converting a FreezeResponse r into messages for tag t.
 func (b *Bifrost) handleFreeze(t string, r FreezeResponse) error {
 	b.resMsgTx <- *bifrost.NewMessage(t, "COUNTL").AddArg(strconv.Itoa(len(r)))
 
