@@ -53,7 +53,9 @@ func NewBifrost(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifros
 }
 
 // Run runs the main body of the Bifrost adapter.
+// It will immediately send the new client responses to the response channel.
 func (b *Bifrost) Run() {
+	b.handleNewClientResponses()
 	for {
 		select {
 		case rq := <-b.reqMsgRx:
@@ -93,16 +95,21 @@ func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
 		return nil, err
 	}
 
+	return makeRequest(rbody, &m, b.reply), nil
+}
+
+// makeRequest creates a request with body rbody, original message m, and reply channel rch.
+// m may be nil.
+func makeRequest(rbody interface{}, m *bifrost.Message, rch chan<- Response) *Request {
 	origin := RequestOrigin{
-		Message: &m,
-		ReplyTx: b.reply,
+		Message: m,
+		ReplyTx: rch,
 	}
 	request := Request{
 		Origin: origin,
 		Body:   rbody,
 	}
-
-	return &request, nil
+	return &request
 }
 
 // requestParser is the type of request parsers.
@@ -142,6 +149,28 @@ func parseAutoMessage(args []string) (interface{}, error) {
 //
 // Response emitting
 //
+
+// handleNewClientResponses handles the new client responses (OHAI, IAMA, etc).
+func (b *Bifrost) handleNewClientResponses() {
+	// We don't use b.reply here, because we want to suppress ACK.
+	ncreply := make(chan Response)
+
+	// TODO(@MattWindsor91): OHAI
+	// TODO(@MattWindsor91): IAMA
+	b.reqConTx <- *makeRequest(DumpRequest{}, nil, ncreply)
+	b.handleResponsesUntilAck(ncreply)
+}
+
+// handleResponsesUntilAck handles responses on channel c until it receives ACK or the channel closes.
+func (b *Bifrost) handleResponsesUntilAck(c <-chan Response) {
+	for r := range c {
+		if _, isAck := r.Body.(AckResponse); isAck {
+			return
+		}
+
+		b.handleResponse(r)
+	}
+}
 
 // handleResponse handles a controller response rs.
 func (b *Bifrost) handleResponse(rs Response) {
