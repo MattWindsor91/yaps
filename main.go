@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
+	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
 	"github.com/UniversityRadioYork/baps3d/list"
 )
 
-func spinUpList() (*list.Controller, *list.Client) {
+func spinUpList() (*comm.Controller, *comm.Client) {
 	lst := list.New()
 	return list.NewController(lst)
 }
@@ -29,13 +30,13 @@ func main() {
 	console.RunTx()
 	console.Close()
 	fmt.Println("shutting down")
-	sdreply := make(chan list.Response)
-	cli.Tx <- list.Request{
-		Origin: list.RequestOrigin{
+	sdreply := make(chan comm.Response)
+	cli.Tx <- comm.Request{
+		Origin: comm.RequestOrigin{
 			Tag:     bifrost.TagUnknown,
 			ReplyTx: sdreply,
 		},
-		Body: list.ShutdownRequest{},
+		Body: comm.ShutdownRequest{},
 	}
 	fmt.Println("sent shutdown request")
 	_ = <-sdreply
