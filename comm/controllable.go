@@ -7,6 +7,9 @@ type ResponseCb func(interface{})
 
 // Controllable is the interface for inner Controller states.
 type Controllable interface {
+	// RoleName gives the Bifrost role name of this Controllable.
+	RoleName() string
+
 	// Dump dumps out the Controllable's public state, calling dumpCb for each dump response.
 	Dump(dumpCb ResponseCb)
 

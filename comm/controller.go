@@ -137,7 +137,7 @@ func (c *Controller) handleRequest(rq Request) {
 
 // handleRoleRequest handles a role request with origin o and body b.
 func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
-	c.reply(o, RoleResponse{Role: "list"})
+	c.reply(o, RoleResponse{Role: c.state.RoleName()})
 
 	// Role requests never fail
 	return nil

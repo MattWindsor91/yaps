@@ -13,6 +13,11 @@ func NewController(l *List) (*comm.Controller, *comm.Client) {
 	return comm.NewController(l)
 }
 
+// RoleName gives the role name for a List Controller.
+func (l *List) RoleName() string {
+	return "list"
+}
+
 //
 // Dump logic
 //
