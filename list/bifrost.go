@@ -1,7 +1,7 @@
 package list
 
-// This file contains a bridge between the Bifrost list protocol and the
-// list Controller requests and responses.
+// File list/bifrost.go contains List-specific Bifrost marshalling logic.
+// - See `comm/bifrost.go` for the common marshalling logic.
 
 import (
 	"fmt"
@@ -11,146 +11,20 @@ import (
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
-// pversion is the Bifrost semantic protocol version.
-var pversion = "bifrost-0.0.0"
-
-// sversion is the Baps3D semantic server version.
-var sversion = "baps3d-0.0.0"
-
-// Bifrost is the type of adapters from list Controller clients to Bifrost.
-type Bifrost struct {
-	// reqConTx is the inward channel to which this adapter sends controller requests.
-	reqConTx chan<- comm.Request
-
-	// resConRx is the inward channel from which this adapter receives controller requests.
-	resConRx <-chan comm.Response
-
-	// resMsgTx is the outward channel to which this adapter sends response messages.
-	resMsgTx chan<- bifrost.Message
-
-	// reqMsgRx is the outward channel from which this adapter receives requests.
-	reqMsgRx <-chan bifrost.Message
-
-	// requestMap is the map of known Bifrost message words, and their parsers.
-	requestMap map[string]requestParser
-
-	// reply is the channel this adapter uses to service replies to requests it sends to the client.
-	reply chan comm.Response
-}
-
-// NewBifrost wraps client inside a Bifrost adapter.
-// It returns a channel for sending request messages, and one for receiving response messages.
-func NewBifrost(client *comm.Client) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message) {
-	response := make(chan bifrost.Message)
-	request := make(chan bifrost.Message)
-	reply := make(chan comm.Response)
-
-	// TODO(@MattWindsor91): when generalising, make the tables get passed in.
-
-	bifrost := Bifrost{
-		reqConTx:   client.Tx,
-		resConRx:   client.Rx,
-		resMsgTx:   response,
-		reqMsgRx:   request,
-		reply:      reply,
-		requestMap: newRequestMap(),
-	}
-
-	return &bifrost, request, response
-}
-
-// Run runs the main body of the Bifrost adapter.
-// It will immediately send the new client responses to the response channel.
-func (b *Bifrost) Run() {
-	b.handleNewClientResponses()
-MainLoop:
-	for {
-		select {
-		case rq, ok := <-b.reqMsgRx:
-			// Closing the message channel is how the client tells us it has disconnected
-			if !ok {
-				break MainLoop
-			}
-			b.handleRequest(rq)
-		case rs := <-b.reply:
-			b.handleResponse(rs)
-		case rs, ok := <-b.resConRx:
-			// Closing the response channel is how the controller tells us it has shutdown
-			if !ok {
-				break MainLoop
-			}
-			b.handleResponse(rs)
-		}
-	}
-
-	// Don't shut down the controller: it might have more clients.
-	close(b.reqConTx)
-	close(b.resMsgTx)
+// NewBifrost wraps client inside a Bifrost adapter for lists.
+func NewBifrost(client *comm.Client) (*comm.Bifrost, chan<- bifrost.Message, <-chan bifrost.Message) {
+	return comm.NewBifrost(
+		client,
+		map[string]comm.RequestParser{
+			"auto": parseAutoMessage,
+		},
+		handleResponse,
+	)
 }
 
 //
-// Request parsing
+// Request parsers
 //
-
-// handleRequest handles the request message rq.
-func (b *Bifrost) handleRequest(rq bifrost.Message) {
-	request, err := b.fromMessage(rq)
-	if err != nil {
-		b.resMsgTx <- *errorToMessage(rq.Tag(), err)
-		return
-	}
-
-	b.reqConTx <- *request
-}
-
-// fromMessage tries to parse a message as a controller request.
-func (b *Bifrost) fromMessage(m bifrost.Message) (*comm.Request, error) {
-	parser, ok := b.requestMap[m.Word()]
-	if !ok {
-		return nil, fmt.Errorf("unknown word: %s", m.Word())
-	}
-
-	rbody, err := parser(m.Args())
-	if err != nil {
-		return nil, err
-	}
-
-	return makeRequest(rbody, m.Tag(), b.reply), nil
-}
-
-// makeRequest creates a request with body rbody, tag tag, and reply channel rch.
-// m may be nil.
-func makeRequest(rbody interface{}, tag string, rch chan<- comm.Response) *comm.Request {
-	origin := comm.RequestOrigin{
-		Tag:     tag,
-		ReplyTx: rch,
-	}
-	request := comm.Request{
-		Origin: origin,
-		Body:   rbody,
-	}
-	return &request
-}
-
-// requestParser is the type of request parsers.
-type requestParser func([]string) (interface{}, error)
-
-// newRequestMap builds the request parser map.
-func newRequestMap() map[string]requestParser {
-	return map[string]requestParser{
-		"dump": parseDumpMessage,
-		"auto": parseAutoMessage,
-	}
-}
-
-// parseDumpMessage tries to parse a 'dump' message.
-func parseDumpMessage(args []string) (interface{}, error) {
-	if len(args) != 0 {
-		return nil, fmt.Errorf("bad arity")
-	}
-
-	return comm.DumpRequest{}, nil
-}
 
 // parseAutoMessage tries to parse an 'auto' message.
 func parseAutoMessage(args []string) (interface{}, error) {
@@ -170,87 +44,32 @@ func parseAutoMessage(args []string) (interface{}, error) {
 // Response emitting
 //
 
-// handleNewClientResponses handles the new client responses (OHAI, IAMA, etc).
-func (b *Bifrost) handleNewClientResponses() {
-	// SPEC: see http://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
-
-	// OHAI is a Bifrost-ism, so we don't bother asking the Client about it
-	b.resMsgTx <- *bifrost.NewMessage(bifrost.TagBcast, bifrost.RsOhai).AddArg(pversion).AddArg(sversion)
-
-	// We don't use b.reply here, because we want to suppress ACK.
-	ncreply := make(chan comm.Response)
-	b.reqConTx <- *makeRequest(comm.RoleRequest{}, bifrost.TagBcast, ncreply)
-	b.handleResponsesUntilAck(ncreply)
-	b.reqConTx <- *makeRequest(comm.DumpRequest{}, bifrost.TagBcast, ncreply)
-	b.handleResponsesUntilAck(ncreply)
-}
-
-// handleResponsesUntilAck handles responses on channel c until it receives ACK or the channel closes.
-func (b *Bifrost) handleResponsesUntilAck(c <-chan comm.Response) {
-	for r := range c {
-		if _, isAck := r.Body.(comm.AckResponse); isAck {
-			return
-		}
-
-		b.handleResponse(r)
-	}
-}
-
-// handleResponse handles a controller response rs.
-func (b *Bifrost) handleResponse(rs comm.Response) {
-	tag := rs.Origin.Tag
-
-	var err error
-
-	switch r := rs.Body.(type) {
-	case comm.AckResponse:
-		err = b.handleAck(tag, r)
-	case comm.RoleResponse:
-		err = b.handleRole(tag, r)
+// handleResponse handles a controller response with tag tag and body rbody.
+// It sends response messages to msgTx.
+func handleResponse(tag string, rbody interface{}, msgTx chan<- bifrost.Message) (err error) {
+	switch r := rbody.(type) {
 	case AutoModeResponse:
-		err = b.handleAutoMode(tag, r)
+		err = handleAutoMode(tag, r, msgTx)
 	case FreezeResponse:
-		err = b.handleFreeze(tag, r)
+		err = handleFreeze(tag, r, msgTx)
 	case ItemResponse:
-		err = b.handleItem(tag, r)
+		err = handleItem(tag, r, msgTx)
 	default:
 		err = fmt.Errorf("response with no message equivalent: %v", r)
 	}
 
-	if err != nil {
-		// TODO(@MattWindsor91): propagate?
-		fmt.Println("response error:", err.Error())
-	}
-}
-
-// handleAck handles converting an AckResponse r into messages for tag t.
-// If the ACK had an error, it is propagated down.
-func (b *Bifrost) handleAck(t string, r comm.AckResponse) error {
-	if r.Err != nil {
-		return r.Err
-	}
-
-	// SPEC: The wording here is specific.
-	// SPEC: See https://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
-	b.resMsgTx <- *bifrost.NewMessage(t, bifrost.RsAck).AddArg("OK").AddArg("success")
-	return nil
-}
-
-// handleRole handles converting a RoleResponse r into messages for tag t.
-func (b *Bifrost) handleRole(t string, r comm.RoleResponse) error {
-	b.resMsgTx <- *bifrost.NewMessage(t, "IAMA").AddArg(r.Role)
-	return nil
+	return
 }
 
 // handleAutoMode handles converting an AutoModeResponse r into messages for tag t.
-func (b *Bifrost) handleAutoMode(t string, r AutoModeResponse) error {
-	b.resMsgTx <- *bifrost.NewMessage(t, "AUTO").AddArg(r.AutoMode.String())
+func handleAutoMode(t string, r AutoModeResponse, msgTx chan<- bifrost.Message) error {
+	msgTx <- *bifrost.NewMessage(t, "AUTO").AddArg(r.AutoMode.String())
 	return nil
 }
 
 // handleFreeze handles converting a FreezeResponse r into messages for tag t.
-func (b *Bifrost) handleFreeze(t string, r FreezeResponse) error {
-	b.resMsgTx <- *bifrost.NewMessage(t, "COUNTL").AddArg(strconv.Itoa(len(r)))
+func handleFreeze(t string, r FreezeResponse, msgTx chan<- bifrost.Message) error {
+	msgTx <- *bifrost.NewMessage(t, "COUNTL").AddArg(strconv.Itoa(len(r)))
 
 	// The next bit is the same as if we were loading the items--
 	// so we reuse the logic.
@@ -260,7 +79,7 @@ func (b *Bifrost) handleFreeze(t string, r FreezeResponse) error {
 			Item:  item,
 		}
 
-		if err := b.handleItem(t, ilr); err != nil {
+		if err := handleItem(t, ilr, msgTx); err != nil {
 			return err
 		}
 	}
@@ -269,7 +88,7 @@ func (b *Bifrost) handleFreeze(t string, r FreezeResponse) error {
 }
 
 // handleItem handles converting an ItemResponse r into messages for tag t.
-func (b *Bifrost) handleItem(t string, r ItemResponse) error {
+func handleItem(t string, r ItemResponse, msgTx chan<- bifrost.Message) error {
 	var word string
 	switch r.Item.Type() {
 	case ItemTrack:
@@ -280,12 +99,6 @@ func (b *Bifrost) handleItem(t string, r ItemResponse) error {
 		return fmt.Errorf("unknown item type %v", r.Item.Type())
 	}
 
-	b.resMsgTx <- *bifrost.NewMessage(t, word).AddArg(strconv.Itoa(r.Index)).AddArg(r.Item.Hash()).AddArg(r.Item.Payload())
+	msgTx <- *bifrost.NewMessage(t, word).AddArg(strconv.Itoa(r.Index)).AddArg(r.Item.Hash()).AddArg(r.Item.Payload())
 	return nil
-}
-
-// errorToMessage converts the error e to a Bifrost message sent to tag t.
-func errorToMessage(t string, e error) *bifrost.Message {
-	// TODO(@MattWindsor91): figure out whether e is a WHAT or a FAIL.
-	return bifrost.NewMessage(t, bifrost.RsAck).AddArg("WHAT").AddArg(e.Error())
 }
