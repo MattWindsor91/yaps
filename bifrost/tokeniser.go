@@ -1,6 +1,7 @@
 package bifrost
 
 import (
+	"fmt"
 	"io"
 	"unicode"
 )
@@ -32,20 +33,23 @@ type ReaderTokeniser struct {
 // ReadLine may return an error if the Reader chokes.
 func (t *ReaderTokeniser) ReadLine() ([]string, error) {
 	for {
-		for t.pos == t.max {
-			var err error
-			if t.max, err = t.reader.Read(t.buf[:]); err != nil {
-				return []string{}, err
+		for t.pos < t.max {
+			nread, lineok, line := t.tok.TokeniseBytes(t.buf[t.pos:t.max])
+			t.pos += nread
+
+			if lineok {
+				return line, nil
 			}
-			t.pos = 0
+		}
+		if t.max < t.pos {
+			panic(fmt.Errorf("position %d > maximum %d", t.pos, t.max))
 		}
 
-		nread, lineok, line := t.tok.TokeniseBytes(t.buf[t.pos:t.max])
-		t.pos += nread
-
-		if lineok {
-			return line, nil
+		var err error
+		if t.max, err = t.reader.Read(t.buf[:]); err != nil {
+			return []string{}, err
 		}
+		t.pos = 0
 	}
 }
 
@@ -101,11 +105,13 @@ func (t *Tokeniser) TokeniseBytes(bs []byte) (nread int, lineok bool, line []str
 		return
 	}
 
-	for nread = 0; nread < len(bs); nread++ {
-		if t.tokeniseByte(bs[nread]) {
+	for i := 0; i < len(bs); i++ {
+		if t.tokeniseByte(bs[i]) {
+			nread = i + 1
 			lineok = true
 			line = t.words
 			t.words = []string{}
+			return
 		}
 	}
 
