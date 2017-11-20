@@ -92,9 +92,9 @@ func handleItem(t string, r ItemResponse, msgTx chan<- bifrost.Message) error {
 	var word string
 	switch r.Item.Type() {
 	case ItemTrack:
-		word = "floadl"
+		word = "FLOADL"
 	case ItemText:
-		word = "tloadl"
+		word = "TLOADL"
 	default:
 		return fmt.Errorf("unknown item type %v", r.Item.Type())
 	}
