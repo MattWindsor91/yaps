@@ -17,6 +17,7 @@ func NewBifrost(client *comm.Client) (*comm.Bifrost, chan<- bifrost.Message, <-c
 		client,
 		map[string]comm.RequestParser{
 			"auto": parseAutoMessage,
+			"sel":  parseSelMessage,
 		},
 		handleResponse,
 	)
@@ -40,6 +41,21 @@ func parseAutoMessage(args []string) (interface{}, error) {
 	return SetAutoModeRequest{AutoMode: amode}, nil
 }
 
+/// parseSelMEssage tries to parse a 'sel' message.
+func parseSelMessage(args []string) (interface{}, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("bad arity")
+	}
+
+	index, err := strconv.Atoi(args[0])
+	if err != nil {
+		return nil, err
+	}
+	hash := args[1]
+
+	return SetSelectRequest{Index: index, Hash: hash}, nil
+}
+
 //
 // Response emitting
 //
@@ -54,6 +70,8 @@ func handleResponse(tag string, rbody interface{}, msgTx chan<- bifrost.Message)
 		err = handleFreeze(tag, r, msgTx)
 	case ItemResponse:
 		err = handleItem(tag, r, msgTx)
+	case SelectResponse:
+		err = handleSelect(tag, r, msgTx)
 	default:
 		err = fmt.Errorf("response with no message equivalent: %v", r)
 	}
@@ -100,5 +118,12 @@ func handleItem(t string, r ItemResponse, msgTx chan<- bifrost.Message) error {
 	}
 
 	msgTx <- *bifrost.NewMessage(t, word).AddArg(strconv.Itoa(r.Index)).AddArg(r.Item.Hash()).AddArg(r.Item.Payload())
+	return nil
+}
+
+// handleSelect handles converting a SelectResponse r into messages for tag t.
+func handleSelect(t string, r SelectResponse, msgTx chan<- bifrost.Message) error {
+	msg := *bifrost.NewMessage(t, "SEL").AddArg(strconv.Itoa(r.Index)).AddArg(r.Hash)
+	msgTx <- msg
 	return nil
 }

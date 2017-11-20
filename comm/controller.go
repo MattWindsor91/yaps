@@ -4,7 +4,6 @@ package comm
 // The baps3d state must satisfy the 'Controllable' interface.
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -84,7 +83,7 @@ func (c *Controller) Run() {
 		// TODO(@MattWindsor91): properly handle if this isn't a Request
 		rq, ok := value.Interface().(Request)
 		if !ok {
-			fmt.Println("FIXME: got bad request")
+			panic("FIXME: got bad request")
 		}
 
 		c.handleRequest(rq)

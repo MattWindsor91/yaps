@@ -20,9 +20,6 @@ type SetSelectRequest struct {
 	Hash string
 }
 
-// NextRequest requests a selection skip.
-type NextRequest struct{}
-
 // SetAutoModeRequest requests an automode change.
 type SetAutoModeRequest struct {
 	// AutoMode represents the new AutoMode to use.

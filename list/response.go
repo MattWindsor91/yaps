@@ -17,6 +17,14 @@ type AutoModeResponse struct {
 	AutoMode AutoMode
 }
 
+// SelectResponse announces a change in selection.
+type SelectResponse struct {
+	// Index represents the selected index.
+	Index int
+	// Hash represents the selected item's hash.
+	Hash string
+}
+
 // FreezeResponse announces a snapshot of the entire list.
 type FreezeResponse []Item
 
