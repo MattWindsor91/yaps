@@ -204,8 +204,7 @@ func (b *Bifrost) handleResponse(rs Response) {
 	}
 
 	if err != nil {
-		// TODO(@MattWindsor91): propagate?
-		fmt.Println("response error:", err.Error())
+		b.resMsgTx <- *errorToMessage(tag, err)
 	}
 }
 
