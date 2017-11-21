@@ -72,17 +72,43 @@ func (l *List) HandleRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, r
 
 	switch b := rbody.(type) {
 	case SetAutoModeRequest:
-		if l.SetAutoMode(b.AutoMode) {
-			bcastCb(l.autoModeResponse())
-		}
+		err = l.handleAutoModeRequest(replyCb, bcastCb, b)
 	case SetSelectRequest:
-		changed := false
-		changed, err = l.Select(b.Index, b.Hash)
-		if err != nil && changed {
-			bcastCb(l.selectResponse())
-		}
+		err = l.handleSelectRequest(replyCb, bcastCb, b)
+	case AddItemRequest:
+		err = l.handleAddItemRequest(replyCb, bcastCb, b)
 	default:
 		err = fmt.Errorf("list can't handle this request")
+	}
+
+	return err
+}
+
+// handleAutoModeRequest handles an automode change request for List l.
+func (l *List) handleAutoModeRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, b SetAutoModeRequest) error {
+	if l.SetAutoMode(b.AutoMode) {
+		bcastCb(l.autoModeResponse())
+	}
+
+	// TODO(@MattWindsor91): errors from setting automode?
+	return nil
+}
+
+// handleSelectRequest handles a selection change request for List l.
+func (l *List) handleSelectRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, b SetSelectRequest) error {
+	changed, err := l.Select(b.Index, b.Hash)
+	if err != nil && changed {
+		bcastCb(l.selectResponse())
+	}
+
+	return err
+}
+
+// handleAddItemRequest handles an item add request for List l.
+func (l *List) handleAddItemRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, b AddItemRequest) error {
+	err := l.Add(&b.Item, b.Index)
+	if err == nil {
+		bcastCb(ItemResponse{Index: b.Index, Item: b.Item})
 	}
 
 	return err

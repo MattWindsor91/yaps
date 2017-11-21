@@ -11,6 +11,12 @@ package list
 // - a parser from messages in 'bifrost.go';
 // - an emitter to messages in 'bifrost.go'.
 
+// SetAutoModeRequest requests an automode change.
+type SetAutoModeRequest struct {
+	// AutoMode represents the new AutoMode to use.
+	AutoMode AutoMode
+}
+
 // SetSelectRequest requests a selection change.
 type SetSelectRequest struct {
 	// Index represents the index to select.
@@ -20,8 +26,10 @@ type SetSelectRequest struct {
 	Hash string
 }
 
-// SetAutoModeRequest requests an automode change.
-type SetAutoModeRequest struct {
-	// AutoMode represents the new AutoMode to use.
-	AutoMode AutoMode
+// AddItemRequest requests that the given item be enqueued in front of the given index.
+type AddItemRequest struct {
+	// Index is the index at which we want to enqueue this item.
+	Index int
+	// Item is the item itself, including its required hash.
+	Item Item
 }

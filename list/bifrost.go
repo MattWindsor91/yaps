@@ -16,8 +16,10 @@ func NewBifrost(client *comm.Client) (*comm.Bifrost, chan<- bifrost.Message, <-c
 	return comm.NewBifrost(
 		client,
 		map[string]comm.RequestParser{
-			"auto": parseAutoMessage,
-			"sel":  parseSelMessage,
+			"auto":   parseAutoMessage,
+			"floadl": parseFloadlMessage,
+			"sel":    parseSelMessage,
+			"tloadl": parseTloadlMessage,
 		},
 		handleResponse,
 	)
@@ -41,7 +43,12 @@ func parseAutoMessage(args []string) (interface{}, error) {
 	return SetAutoModeRequest{AutoMode: amode}, nil
 }
 
-/// parseSelMEssage tries to parse a 'sel' message.
+// parseFloadlMessage tries to parse a 'floadl' message.
+func parseFloadlMessage(args []string) (interface{}, error) {
+	return parseItemAddMessage(NewTrack, args)
+}
+
+// parseSelMessage tries to parse a 'sel' message.
 func parseSelMessage(args []string) (interface{}, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("bad arity")
@@ -54,6 +61,29 @@ func parseSelMessage(args []string) (interface{}, error) {
 	hash := args[1]
 
 	return SetSelectRequest{Index: index, Hash: hash}, nil
+}
+
+// parseTloadlMessage tries to parse a 'tloadl' message.
+func parseTloadlMessage(args []string) (interface{}, error) {
+	return parseItemAddMessage(NewText, args)
+}
+
+// parseItemAddMessage tries to parse a '*loadl' message with arguments args.
+// We have already decided which type of item we're adding and stored its constructor in con.
+func parseItemAddMessage(con func(string, string) *Item, args []string) (interface{}, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("bad arity")
+	}
+
+	index, err := strconv.Atoi(args[0])
+	if err != nil {
+		return nil, err
+	}
+	hash := args[1]
+	payload := args[2]
+
+	item := con(hash, payload)
+	return AddItemRequest{Index: index, Item: *item}, nil
 }
 
 //
