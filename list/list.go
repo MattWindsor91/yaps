@@ -103,7 +103,7 @@ func (l *List) elementWithIndex(i int) *list.Element {
 	// Keep going until we either run out of items, or find the right index.
 	// This is O(n), but the lists will usually be quite small anyway.
 	e := l.list.Front()
-	for j := 0; e != nil && j != i; j-- {
+	for j := 0; e != nil && j != i; j++ {
 		e = e.Next()
 	}
 	return e
