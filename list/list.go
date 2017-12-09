@@ -180,6 +180,11 @@ func (l *List) Select(index int, hash string) (changed bool, err error) {
 		return
 	}
 
+	if !i.IsSelectable() {
+		err = fmt.Errorf("Select: item not selectable")
+		return
+	}
+
 	changed = index != l.selection
 	l.selection = index
 	return

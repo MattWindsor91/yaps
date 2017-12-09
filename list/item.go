@@ -34,7 +34,7 @@ type Item struct {
 	hash string
 	// payload is the data component of the item.
 	payload string
-	// itype is the type of tie item.
+	// itype is the type of the item.
 	itype ItemType
 }
 
@@ -61,4 +61,9 @@ func (i *Item) Payload() string {
 // Hash returns the hash of the Item.
 func (i *Item) Hash() string {
 	return i.hash
+}
+
+// IsSelectable returns whether or not the Item i can be selected.
+func (i *Item) IsSelectable() bool {
+	return i.itype != ItemText
 }

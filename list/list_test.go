@@ -2,6 +2,7 @@ package list_test
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/UniversityRadioYork/baps3d/list"
 )
@@ -98,4 +99,40 @@ func ExampleList_Freeze() {
 	// Output:
 	// abc track foo.mp3
 	// xyz track bar.mp3
+}
+
+// Test_SelectTrack_Success checks that selecting a valid track item works.
+func Test_SelectTrack_Success(t *testing.T) {
+	l := list.New()
+
+	if err := l.Add(list.NewTrack("abc", "foo.mp3"), 0); err != nil {
+		panic(err)
+	}
+	if err := l.Add(list.NewText("xyz", "test"), 1); err != nil {
+		panic(err)
+	}
+
+	_, err := l.Select(0, "abc")
+	if err != nil {
+		t.Error("unexpected error:", err)
+	}
+}
+
+// Test_CannotSelectTextItem makes sure a text item can't be selected manually.
+func Test_CannotSelectTextItem(t *testing.T) {
+	l := list.New()
+
+	if err := l.Add(list.NewTrack("abc", "foo.mp3"), 0); err != nil {
+		panic(err)
+	}
+	if err := l.Add(list.NewText("xyz", "test"), 1); err != nil {
+		panic(err)
+	}
+
+	_, err := l.Select(1, "xyz")
+	if err == nil {
+		t.Error("expected error when selecting text item")
+	}
+
+	// TODO(@MattWindsor91): make sure we get the right error
 }
