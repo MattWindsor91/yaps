@@ -35,6 +35,50 @@ func TestAutoModeString(t *testing.T) {
 	}
 }
 
+// TestParseAutoMode_Valid tests ParseAutoMode with valid strings.
+func TestParseAutoMode_Valid(t *testing.T) {
+	cases := []struct {
+		a list.AutoMode
+		s string
+	}{
+		{list.AutoOff, "off"},
+		{list.AutoDrop, "drop"},
+		{list.AutoNext, "next"},
+		{list.AutoShuffle, "shuffle"},
+	}
+
+	for _, c := range cases {
+		g, e := list.ParseAutoMode(c.s)
+		if e != nil {
+			t.Fatalf("unexpected error: %a", e.Error())
+		}
+		if g != c.a {
+			t.Fatalf("'%s' parsed as '%s', not %a", c.s, g, c.a)
+		}
+	}
+}
+
+// TestParseAutoMode_Invalid tests ParseAutoMode with invalid strings.
+func TestParseAutoMode_Invalid(t *testing.T) {
+	cases := []string{
+		"",
+		" ",
+		"\n",
+		" off",
+		"drop ",
+		" next ",
+		"shuffle\n",
+		"invalid",
+	}
+
+	for _, c := range cases {
+		g, e := list.ParseAutoMode(c)
+		if e == nil {
+			t.Fatalf("invalid automode '%s' parsed as %a", c, g)
+		}
+	}
+}
+
 func ExampleParseAutoMode() {
 	a, e := list.ParseAutoMode("off")
 	fmt.Println(a)

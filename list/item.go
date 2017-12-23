@@ -38,14 +38,19 @@ type Item struct {
 	itype ItemType
 }
 
+// NewItem creates a new item with the given hash, payload, and item type.
+func NewItem(itype ItemType, hash, payload string) *Item {
+	return &Item{hash, payload, itype}
+}
+
 // NewTrack creates a new track-type item.
 func NewTrack(hash, path string) *Item {
-	return &Item{hash, path, ItemTrack}
+	return NewItem(ItemTrack, hash, path)
 }
 
 // NewText creates a new text-type item.
 func NewText(hash, contents string) *Item {
-	return &Item{hash, contents, ItemText}
+	return NewItem(ItemText, hash, contents)
 }
 
 // Type returns the type of the Item.
