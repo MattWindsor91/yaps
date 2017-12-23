@@ -1,7 +1,6 @@
 package bifrost
 
 import (
-	"fmt"
 	"io"
 	"unicode"
 )
@@ -29,27 +28,34 @@ type ReaderTokeniser struct {
 	max    int
 }
 
+// tokeniseUntilLine drains t's internal buffer into its tokeniser until it runs out or produces a line.
+func (t *ReaderTokeniser) tokeniseUntilLine() (line []string, lineok bool) {
+	nread := 0
+	for t.pos < t.max && !lineok {
+		nread, lineok, line = t.tok.TokeniseBytes(t.buf[t.pos:t.max])
+		t.pos += nread
+	}
+	return
+}
+
+// fillFromReader fills t's internal buffer using its reader.
+// It can fail with errors from the reader.
+func (t *ReaderTokeniser) fillFromReader() (err error) {
+	t.pos = 0
+	t.max, err = t.reader.Read(t.buf[:])
+	return
+}
+
 // ReadLine reads a tokenised line from the Reader.
 // ReadLine may return an error if the Reader chokes.
 func (t *ReaderTokeniser) ReadLine() ([]string, error) {
 	for {
-		for t.pos < t.max {
-			nread, lineok, line := t.tok.TokeniseBytes(t.buf[t.pos:t.max])
-			t.pos += nread
-
-			if lineok {
-				return line, nil
-			}
+		if line, lineok := t.tokeniseUntilLine(); lineok {
+			return line, nil
 		}
-		if t.max < t.pos {
-			panic(fmt.Errorf("position %d > maximum %d", t.pos, t.max))
-		}
-
-		var err error
-		if t.max, err = t.reader.Read(t.buf[:]); err != nil {
+		if err := t.fillFromReader(); err != nil {
 			return []string{}, err
 		}
-		t.pos = 0
 	}
 }
 
