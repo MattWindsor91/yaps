@@ -50,10 +50,10 @@ func TestParseAutoMode_Valid(t *testing.T) {
 	for _, c := range cases {
 		g, e := list.ParseAutoMode(c.s)
 		if e != nil {
-			t.Fatalf("unexpected error: %a", e.Error())
+			t.Fatalf("unexpected error: %s", e.Error())
 		}
 		if g != c.a {
-			t.Fatalf("'%s' parsed as '%s', not %a", c.s, g, c.a)
+			t.Fatalf("'%s' parsed as '%s', not %v", c.s, g, c.a)
 		}
 	}
 }
@@ -74,7 +74,7 @@ func TestParseAutoMode_Invalid(t *testing.T) {
 	for _, c := range cases {
 		g, e := list.ParseAutoMode(c)
 		if e == nil {
-			t.Fatalf("invalid automode '%s' parsed as %a", c, g)
+			t.Fatalf("invalid automode '%s' parsed as %v", c, g)
 		}
 	}
 }

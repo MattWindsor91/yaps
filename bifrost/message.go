@@ -36,7 +36,7 @@ type Message struct {
 	args []string
 }
 
-// New creates and returns a new Message with the given tag and message word.
+// NewMessage creates and returns a new Message with the given tag and message word.
 // The message will initially have no arguments; use AddArg to add arguments.
 func NewMessage(tag, word string) *Message {
 	return &Message{
@@ -52,6 +52,8 @@ func (m *Message) AddArg(arg string) *Message {
 	return m
 }
 
+// escapeArgument escapes a message argument.
+// It does so using Bifrost's single-quoting, which is easy to encode but bad for human readability.
 func escapeArgument(input string) string {
 	return "'" + strings.Replace(input, "'", `'\''`, -1) + "'"
 }
@@ -62,8 +64,7 @@ func escapeArgument(input string) string {
 func (m *Message) Pack() (packed []byte, err error) {
 	output := new(bytes.Buffer)
 
-	_, err = output.WriteString(m.tag + " " + m.word)
-	if err != nil {
+	if _, err = output.WriteString(m.tag + " " + m.word); err != nil {
 		return
 	}
 
@@ -76,12 +77,13 @@ func (m *Message) Pack() (packed []byte, err error) {
 			}
 		}
 
-		_, err = output.WriteString(" " + a)
-		if err != nil {
+		if _, err = output.WriteString(" " + a); err != nil {
 			return
 		}
 	}
-	output.WriteString("\n")
+	if _, err = output.WriteString("\n"); err != nil {
+		return
+	}
 
 	packed = output.Bytes()
 	return
@@ -126,7 +128,7 @@ func (m *Message) String() (outstr string) {
 	return
 }
 
-// lineToMessage constructs a Message struct from a line of word-strings.
+// LineToMessage constructs a Message struct from a line of word-strings.
 func LineToMessage(line []string) (msg *Message, err error) {
 	if len(line) < 2 {
 		err = fmt.Errorf("insufficient words")

@@ -9,13 +9,8 @@ import (
 	"github.com/UniversityRadioYork/baps3d/list"
 )
 
-func spinUpList() (*comm.Controller, *comm.Client) {
-	lst := list.New()
-	return list.NewController(lst)
-}
-
 func main() {
-	lc, cli := spinUpList()
+	lc, cli := list.NewControlledList()
 	go lc.Run()
 
 	lb, ltx, lrx := list.NewBifrost(cli)
@@ -28,7 +23,9 @@ func main() {
 
 	go console.RunRx()
 	console.RunTx()
-	console.Close()
+	if err = console.Close(); err != nil {
+		fmt.Println(err)
+	}
 	fmt.Println("shutting down")
 	sdreply := make(chan comm.Response)
 	cli.Tx <- comm.Request{

@@ -48,8 +48,8 @@ func New(requestTx chan<- bifrost.Message, responseRx <-chan bifrost.Message) (*
 }
 
 // Close cleans up a Console after it's done.
-func (c *Console) Close() {
-	c.rl.Close()
+func (c *Console) Close() error {
+	return c.rl.Close()
 }
 
 // RunRx runs the Console's message receiver loop.
@@ -143,7 +143,7 @@ func (c *Console) txLine(line []string) {
 // line must be non-empty.
 func (c *Console) handleSpecialCommand(line []string) bool {
 	if scword, issc := parseSpecialCommand(line[0]); issc {
-		var err error = nil
+		var err error
 
 		switch scword {
 		case "quit":
@@ -200,5 +200,7 @@ func (c *Console) outputMessage(mbytes []byte) {
 
 // outputError prints an error e to stderr.
 func (c *Console) outputError(e error) {
-	fmt.Fprintln(c.rl.Stderr(), prefixError, e.Error())
+	if _, err := fmt.Fprintln(c.rl.Stderr(), prefixError, e.Error()); err != nil {
+		fmt.Println("error when writing to stderr (!):", err.Error())
+	}
 }

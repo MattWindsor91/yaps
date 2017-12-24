@@ -12,9 +12,10 @@ type Controller struct {
 	// state is the internal state managed by the Controller.
 	state Controllable
 
-	// clients is the list of Controller-facing client channel pairs.
+	// clients is the set of Controller-facing client channel pairs.
 	// Each client that subscribes gets a Client struct with the other sides.
-	clients map[coclient]struct{}
+	// Each client maps to its current index in cselects.
+	clients map[coclient]int
 
 	// cselects is the list of cases, one per client, used in the connector select loop.
 	// It gets rebuilt every time a client connects or disconnects.
@@ -55,7 +56,7 @@ func makeClient() (Client, coclient) {
 // makeAndAddClient creates a new client and coclient pair, and adds the coclient to c's clients.
 func (c *Controller) makeAndAddClient() *Client {
 	client, co := makeClient()
-	c.clients[co] = struct{}{}
+	c.clients[co] = -1
 
 	c.rebuildClientSelects()
 
@@ -69,6 +70,7 @@ func (c *Controller) rebuildClientSelects() {
 	i := 0
 	for cl := range c.clients {
 		c.cselects[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(cl.rx)}
+		c.clients[cl] = i
 		i++
 	}
 }
@@ -77,7 +79,7 @@ func (c *Controller) rebuildClientSelects() {
 func NewController(c Controllable) (*Controller, *Client) {
 	controller := &Controller{
 		state:   c,
-		clients: make(map[coclient]struct{}),
+		clients: make(map[coclient]int),
 	}
 	client := controller.makeAndAddClient()
 	return controller, client
@@ -87,17 +89,18 @@ func NewController(c Controllable) (*Controller, *Client) {
 func (c *Controller) Run() {
 	c.running = true
 	for c.running {
-		_, value, ok := reflect.Select(c.cselects)
-		if !ok {
-			break
-		}
-		// TODO(@MattWindsor91): properly handle if this isn't a Request
-		rq, ok := value.Interface().(Request)
-		if !ok {
-			panic("FIXME: got bad request")
-		}
+		i, value, open := reflect.Select(c.cselects)
+		if open {
+			// TODO(@MattWindsor91): properly handle if this isn't a Request
+			rq, ok := value.Interface().(Request)
+			if !ok {
+				panic("FIXME: got bad request")
+			}
 
-		c.handleRequest(rq)
+			c.handleRequest(rq)
+		} else {
+			c.hangupClientWithCase(i)
+		}
 	}
 
 	c.hangupClients()
@@ -108,8 +111,18 @@ func (c *Controller) hangupClients() {
 	for cl := range c.clients {
 		close(cl.tx)
 	}
-	c.clients = make(map[coclient]struct{})
+	c.clients = make(map[coclient]int)
 	c.rebuildClientSelects()
+}
+
+// hangupClientWithCase hangs up the client whose select case is at index i.
+func (c *Controller) hangupClientWithCase(i int) {
+	for cl, j := range c.clients {
+		if i == j {
+			c.hangupClient(cl)
+			return
+		}
+	}
 }
 
 // hangupClient closes a client's channels and removes it from the client list.
@@ -117,6 +130,11 @@ func (c *Controller) hangupClient(cl coclient) {
 	close(cl.tx)
 	delete(c.clients, cl)
 	c.rebuildClientSelects()
+
+	// We need at least one client for the Controller to function
+	if len(c.clients) == 0 {
+		c.running = false
+	}
 }
 
 //

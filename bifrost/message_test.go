@@ -3,7 +3,7 @@ package bifrost
 import "testing"
 import "reflect"
 
-func TestMessage(t *testing.T) {
+func TestMessage_WordAndTag(t *testing.T) {
 	cases := []struct {
 		words []string
 		msg   *Message
@@ -47,10 +47,17 @@ func TestMessage(t *testing.T) {
 		if c.words[1] != c.msg.Word() {
 			t.Errorf("Word() == %q, expected %q", c.msg.Word(), c.words[1])
 		}
-	}
 
-	// And now, test args.
-	// TODO(CaptainHayashi): refactor the above to integrate this test
+		got, err := LineToMessage(c.words)
+		if err != nil {
+			t.Errorf("unexpected error with: %q", got)
+		} else if !reflect.DeepEqual(got, c.msg) {
+			t.Errorf("Got %q, wanted %q", got, c.msg)
+		}
+	}
+}
+
+func TestMessage_Args(t *testing.T) {
 	args := []string{"bibbity", "bobbity", "boo"}
 	msg := NewMessage("spelt", "flax")
 	for _, arg := range args {
@@ -70,15 +77,6 @@ func TestMessage(t *testing.T) {
 			t.Errorf("unexpected error with Arg(%d)", i)
 		} else if got != want {
 			t.Errorf("Arg(%d) = %q, want %q", i, got, want)
-		}
-	}
-
-	for _, c := range cases {
-		got, err := LineToMessage(c.words)
-		if err != nil {
-			t.Errorf("unexpected error with: %q", got)
-		} else if !reflect.DeepEqual(got, c.msg) {
-			t.Errorf("Got %q, wanted %q", got, c.msg)
 		}
 	}
 }

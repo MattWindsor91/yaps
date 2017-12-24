@@ -8,9 +8,9 @@ import (
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
-// NewController constructs a new Controller for a given List.
-func NewController(l *List) (*comm.Controller, *comm.Client) {
-	return comm.NewController(l)
+// NewControlledList constructs a new List and wraps it in a Controller.
+func NewControlledList() (*comm.Controller, *comm.Client) {
+	return comm.NewController(New())
 }
 
 // RoleName gives the role name for a List Controller.
@@ -108,7 +108,7 @@ func (l *List) handleSelectRequest(replyCb comm.ResponseCb, bcastCb comm.Respons
 func (l *List) handleAddItemRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, b AddItemRequest) error {
 	err := l.Add(&b.Item, b.Index)
 	if err == nil {
-		bcastCb(ItemResponse{Index: b.Index, Item: b.Item})
+		bcastCb(ItemResponse(b))
 	}
 
 	return err

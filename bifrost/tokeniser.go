@@ -30,7 +30,7 @@ type ReaderTokeniser struct {
 
 // tokeniseUntilLine drains t's internal buffer into its tokeniser until it runs out or produces a line.
 func (t *ReaderTokeniser) tokeniseUntilLine() (line []string, lineok bool) {
-	nread := 0
+	var nread int
 	for t.pos < t.max && !lineok {
 		nread, lineok, line = t.tok.TokeniseBytes(t.buf[t.pos:t.max])
 		t.pos += nread
