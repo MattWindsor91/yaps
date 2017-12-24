@@ -16,6 +16,10 @@ type Controller struct {
 	// Each client that subscribes gets a Client struct with the other sides.
 	clients map[coclient]struct{}
 
+	// cselects is the list of cases, one per client, used in the connector select loop.
+	// It gets rebuilt every time a client connects or disconnects.
+	cselects []reflect.SelectCase
+
 	// running is the internal is-running flag.
 	// When this is set to false, the controller loop will exit.
 	running bool
@@ -48,35 +52,42 @@ func makeClient() (Client, coclient) {
 	return cli, ccl
 }
 
+// makeAndAddClient creates a new client and coclient pair, and adds the coclient to c's clients.
+func (c *Controller) makeAndAddClient() *Client {
+	client, co := makeClient()
+	c.clients[co] = struct{}{}
+
+	c.rebuildClientSelects()
+
+	return &client
+}
+
+// rebuildClientSelects repopulates the list of client select cases.
+// It should be run whenever a client connects or disconnects.
+func (c *Controller) rebuildClientSelects() {
+	c.cselects = make([]reflect.SelectCase, len(c.clients))
+	i := 0
+	for cl := range c.clients {
+		c.cselects[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(cl.rx)}
+		i++
+	}
+}
+
 // NewController constructs a new Controller for a given Controllable.
 func NewController(c Controllable) (*Controller, *Client) {
-	client, co := makeClient()
-
-	coclients := make(map[coclient]struct{})
-	coclients[co] = struct{}{}
-
-	controller := Controller{
+	controller := &Controller{
 		state:   c,
-		clients: coclients,
+		clients: make(map[coclient]struct{}),
 	}
-
-	return &controller, &client
+	client := controller.makeAndAddClient()
+	return controller, client
 }
 
 // Run runs this Controller's event loop.
 func (c *Controller) Run() {
-	cases := make([]reflect.SelectCase, len(c.clients))
-	i := 0
-	for cl := range c.clients {
-		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(cl.rx)}
-		i++
-	}
-
 	c.running = true
 	for c.running {
-		// TODO(@MattWindsor91): recalculate client cases when forking
-
-		_, value, ok := reflect.Select(cases)
+		_, value, ok := reflect.Select(c.cselects)
 		if !ok {
 			break
 		}
@@ -95,14 +106,17 @@ func (c *Controller) Run() {
 // hangupClients hangs up every connected client.
 func (c *Controller) hangupClients() {
 	for cl := range c.clients {
-		c.hangupClient(cl)
+		close(cl.tx)
 	}
+	c.clients = make(map[coclient]struct{})
+	c.rebuildClientSelects()
 }
 
 // hangupClient closes a client's channels and removes it from the client list.
 func (c *Controller) hangupClient(cl coclient) {
 	close(cl.tx)
 	delete(c.clients, cl)
+	c.rebuildClientSelects()
 }
 
 //
@@ -121,6 +135,8 @@ func (c *Controller) handleRequest(rq Request) {
 		err = c.handleRoleRequest(o, body)
 	case DumpRequest:
 		err = c.handleDumpRequest(o, body)
+	case NewClientRequest:
+		err = c.handleNewClientRequest(o, body)
 	case ShutdownRequest:
 		err = c.handleShutdownRequest(o, body)
 	default:
@@ -134,14 +150,6 @@ func (c *Controller) handleRequest(rq Request) {
 	c.reply(o, ack)
 }
 
-// handleRoleRequest handles a role request with origin o and body b.
-func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
-	c.reply(o, RoleResponse{Role: c.state.RoleName()})
-
-	// Role requests never fail
-	return nil
-}
-
 // handleDumpRequest handles a dump with origin o and body b.
 func (c *Controller) handleDumpRequest(o RequestOrigin, b DumpRequest) error {
 	dumpCb := func(rbody interface{}) {
@@ -150,6 +158,23 @@ func (c *Controller) handleDumpRequest(o RequestOrigin, b DumpRequest) error {
 	c.state.Dump(dumpCb)
 
 	// Dump requests never fail
+	return nil
+}
+
+// handleNewClientRequest handles a new client request with origin o and body b.
+func (c *Controller) handleNewClientRequest(o RequestOrigin, b NewClientRequest) error {
+	cl := c.makeAndAddClient()
+	c.reply(o, NewClientResponse{Client: cl})
+
+	// New client requests never fail
+	return nil
+}
+
+// handleRoleRequest handles a role request with origin o and body b.
+func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
+	c.reply(o, RoleResponse{Role: c.state.RoleName()})
+
+	// Role requests never fail
 	return nil
 }
 

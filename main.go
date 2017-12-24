@@ -39,8 +39,8 @@ func main() {
 		Body: comm.ShutdownRequest{},
 	}
 	fmt.Println("sent shutdown request")
-	_ = <-sdreply
+	<-sdreply
 	fmt.Println("got shutdown request ack")
-	for _ = range lrx {
+	for range lrx {
 	}
 }

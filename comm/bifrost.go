@@ -52,6 +52,7 @@ func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMs
 	request := make(chan bifrost.Message)
 	reply := make(chan Response)
 
+	// This should be idempotent if we're Fork()ing an existing Bifrost
 	addStandardRequests(rmap)
 
 	bifrost := Bifrost{
@@ -94,6 +95,11 @@ MainLoop:
 	// Don't shut down the controller: it might have more clients.
 	close(b.reqConTx)
 	close(b.resMsgTx)
+}
+
+// Fork creates a new Bifrost adapter with the same parsing logic as b.
+func (b *Bifrost) Fork(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message) {
+	return NewBifrost(client, b.requestMap, b.responseMsgCb)
 }
 
 //
