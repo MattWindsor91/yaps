@@ -92,6 +92,10 @@ func (c *Client) Copy() (*Client, error) {
 // This is equivalent to sending a ShutdownRequest through the Client,
 // but handles the various bits of paperwork.
 func (c *Client) Shutdown() {
+	if c.Tx == nil {
+		panic("double shutdown of client")
+	}
+	
 	reply := make(chan Response)
 	if c.Send(Request{
 		Origin: RequestOrigin{
@@ -176,41 +180,41 @@ func (c *Controller) Run() {
 
 			c.handleRequest(rq)
 		} else {
-			c.hangupClientWithCase(i)
+			c.hangUpClientWithCase(i)
 		}
 	}
 
-	c.hangupClients()
+	c.hangUpClients()
 }
 
-// hangup does the disconnection part of a client hangup.
-func (c *coclient) hangup() {
+// Close does the disconnection part of a client hangup.
+func (c *coclient) Close() {
 	close(c.tx)
 	close(c.done)
 }
 
-// hangupClients hangs up every connected client.
-func (c *Controller) hangupClients() {
+// hangUpClients hangs up every connected client.
+func (c *Controller) hangUpClients() {
 	for cl := range c.clients {
-		cl.hangup()
+		cl.Close()
 	}
 	c.clients = make(map[coclient]int)
 	c.rebuildClientSelects()
 }
 
-// hangupClientWithCase hangs up the client whose select case is at index i.
-func (c *Controller) hangupClientWithCase(i int) {
+// hangUpClientWithCase hangs up the client whose select case is at index i.
+func (c *Controller) hangUpClientWithCase(i int) {
 	for cl, j := range c.clients {
 		if i == j {
-			c.hangupClient(cl)
+			c.hangUpClient(cl)
 			return
 		}
 	}
 }
 
-// hangupClient closes a client's channels and removes it from the client list.
-func (c *Controller) hangupClient(cl coclient) {
-	cl.hangup()
+// hangUpClient closes a client's channels and removes it from the client list.
+func (c *Controller) hangUpClient(cl coclient) {
+	cl.Close()
 	delete(c.clients, cl)
 	c.rebuildClientSelects()
 

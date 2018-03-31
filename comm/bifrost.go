@@ -86,7 +86,7 @@ func (c *BifrostClient) Send(r bifrost.Message) bool {
 // done by parser.
 // It returns a BifrostClient for talking to the adapter.
 func NewBifrost(client *Client, parser BifrostParser) (*Bifrost, *BifrostClient) {
-	response := make(chan bifrost.Message)
+response := make(chan bifrost.Message)
 	request := make(chan bifrost.Message)
 	reply := make(chan Response)
 	done := make(chan struct{})
@@ -109,7 +109,7 @@ func NewBifrost(client *Client, parser BifrostParser) (*Bifrost, *BifrostClient)
 	return &bifrost, &bcl
 }
 
-func (b *Bifrost) hangup() {
+func (b *Bifrost) Close() {
 	// Don't shut down any of the client's own channels: other code
 	// might still try to use them.
 	// Don't shut down the controller: it might have more clients.
@@ -120,7 +120,8 @@ func (b *Bifrost) hangup() {
 // Run runs the main body of the Bifrost adapter.
 // It will immediately send the new client responses to the response channel.
 func (b *Bifrost) Run() {
-	defer b.hangup()
+	defer b.Close()
+	
 	if !b.handleNewClientResponses() {
 		return
 	}
@@ -139,7 +140,9 @@ func (b *Bifrost) Run() {
 		case rs := <-b.reply:
 			b.handleResponse(rs)
 		case rs, ok := <-b.client.Rx:
-			// Closing the response channel is how the controller tells us it has shutdown
+			// No need to check b.client.Done:
+			// if the controller shuts down, it pull both this
+			// channel and Done at the same time.
 			if !ok {
 				return
 			}

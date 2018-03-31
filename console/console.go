@@ -54,13 +54,15 @@ func (c *Console) Close() error {
 // RunRx runs the Console's message receiver loop.
 // This prints messages to stdout.
 func (c *Console) RunRx() {
+	// We don't have to check c.bclient.Done here:
+	// client always drops both Rx and Done when shutting down.
 	for m := range c.bclient.Rx {
 		mbytes, err := m.Pack()
 		if err != nil {
 			c.outputError(err)
 			return
 		}
-
+		
 		c.outputMessage(mbytes)
 	}
 }

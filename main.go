@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
@@ -12,11 +13,17 @@ import (
 )
 
 func main() {
+	var wg sync.WaitGroup
+	
 	rootLog := log.New(os.Stderr, "[root] ", log.LstdFlags)
 	
 	lst := list.New()
 	lstCon, rootClient := comm.NewController(lst)
-	go lstCon.Run()
+	wg.Add(1)
+	go func() {
+		lstCon.Run()
+		wg.Done()
+	}()
 
 	netLog := log.New(os.Stderr, "[net] ", log.LstdFlags)
 	netClient, err := rootClient.Copy()
@@ -25,29 +32,47 @@ func main() {
 		return
 	}
 	netSrv := netsrv.New(netLog, "localhost:1357", netClient, lst)
-	go netSrv.Run()
+	wg.Add(1)
+	go func() {
+		netSrv.Run()
+		wg.Done()
+	}()
 	
-	consoleLstClient, err := rootClient.Copy()
+	consoleClient, err := rootClient.Copy()
 	if err != nil {
 		rootLog.Println("couldn't create console client:", err)
 		return
 	}
-	consoleBf, consoleBfClient := comm.NewBifrost(consoleLstClient, lst)
-	go consoleBf.Run()
+	consoleBf, consoleBfClient := comm.NewBifrost(consoleClient, lst)
+	wg.Add(1)
+	go func() {
+		consoleBf.Run()
+		wg.Done()
+	}()
+	
 	console, err := console.New(consoleBfClient)
 	if err != nil {
 		rootLog.Println("couldn't bring up console:", err)
 		return
 	}
 
-	go console.RunRx()
+	wg.Add(1)
+	go func() {
+		console.RunRx()
+		wg.Done()
+	}()
+	
 	console.RunTx()
+	
 	if err = console.Close(); err != nil {
 		fmt.Println(err)
 	}
+	
 	fmt.Println("shutting down")
 	rootClient.Shutdown()
 	fmt.Println("got shutdown request ack")
-	for range consoleBfClient.Rx {
-	}
+
+	wg.Wait()
+
+	rootLog.Println("It's now safe to turn off your baps3d.")
 }
