@@ -61,16 +61,16 @@ func (s *Server) shutdownController() {
 func (s *Server) newClient(c net.Conn) {
 	s.l.Println("new connection:", c.RemoteAddr().String())
 
-	client := client{
+	cli := client{
 		conn: c,
 	}
 
-	s.clients[client] = struct{}{}
+	s.clients[cli] = struct{}{}
 }
 
 // hangUpAllClients gracefully closes all connected clients on s.
 func (s *Server) hangUpAllClients() {
-	for c, _ := range s.clients {
+	for c := range s.clients {
 		s.hangUpClient(&c)
 	}
 }
@@ -81,6 +81,7 @@ func (s *Server) hangUpClient(c *client) {
 	delete(s.clients, *c)
 }
 
+// Run runs the net server main loop.
 func (s *Server) Run() {
 	defer s.shutdownController()
 
