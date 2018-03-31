@@ -12,7 +12,7 @@ import (
 )
 
 // NewBifrost wraps client inside a Bifrost adapter for lists.
-func NewBifrost(client *comm.Client) (*comm.Bifrost, chan<- bifrost.Message, <-chan bifrost.Message, <-chan struct{}) {
+func NewBifrost(client *comm.Client) (*comm.Bifrost, *comm.BifrostClient) {
 	return comm.NewBifrost(
 		client,
 		map[string]comm.RequestParser{

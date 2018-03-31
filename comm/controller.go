@@ -41,7 +41,10 @@ type Client struct {
 }
 
 // Send tries to send a request on a Client.
-// It returns false if the client has shut down.
+// It returns false if the Client has shut down.
+//
+// Send is just sugar over a Select between Tx and Done, and it is
+// ok to do this manually using the channels themselves.
 func (c *Client) Send(r Request) bool {
 	select {
 	case c.Tx <- r:

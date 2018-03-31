@@ -36,16 +36,16 @@ func copyClient(cli *comm.Client) *comm.Client {
 func main() {
 	lc, cli := list.NewControlledList()
 	go lc.Run()
-	lb, ltx, lrx, ldn := list.NewBifrost(cli)
+	lb, lbc := list.NewBifrost(cli)
 	go lb.Run()
 
 	netLog := log.New(os.Stderr, "net", log.LstdFlags)
 	netClient := copyClient(cli)
-	netBifrost, _, _, _ := lb.Fork(netClient)
+	netBifrost, _ := lb.Fork(netClient)
 	netSrv := netclient.NewServer(netLog, "localhost:1357", netClient, netBifrost)
 	go netSrv.Run()
 	
-	console, err := console.New(ltx, lrx, ldn)
+	console, err := console.New(lbc)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -59,6 +59,6 @@ func main() {
 	fmt.Println("shutting down")
 	cli.Shutdown()
 	fmt.Println("got shutdown request ack")
-	for range lrx {
+	for range lbc.Rx {
 	}
 }

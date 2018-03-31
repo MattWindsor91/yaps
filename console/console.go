@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
+	"github.com/UniversityRadioYork/baps3d/comm"	
 	"github.com/chzyer/readline"
 	"github.com/satori/go.uuid"
 )
@@ -24,9 +25,7 @@ const (
 
 // Console provides a readline-style console for sending Bifrost messages to a controller.
 type Console struct {
-	requestTx  chan<- bifrost.Message
-	responseRx <-chan bifrost.Message
-	doneRx     <- chan struct{}
+	bclient    *comm.BifrostClient
 	tok        *bifrost.Tokeniser
 	rl         *readline.Instance
 	txrun      bool
@@ -34,16 +33,14 @@ type Console struct {
 
 // New creates a new Console.
 // This can fail if the underlying console library fails.
-func New(requestTx chan<- bifrost.Message, responseRx <-chan bifrost.Message, doneRx <-chan struct{}) (*Console, error) {
+func New(bclient *comm.BifrostClient) (*Console, error) {
 	rl, err := readline.New(promptNormal)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Console{
-		requestTx:  requestTx,
-		responseRx: responseRx,
-		doneRx:     doneRx,
+		bclient:    bclient,
 		tok:        bifrost.NewTokeniser(),
 		rl:         rl,
 	}, nil
@@ -57,7 +54,7 @@ func (c *Console) Close() error {
 // RunRx runs the Console's message receiver loop.
 // This prints messages to stdout.
 func (c *Console) RunRx() {
-	for m := range c.responseRx {
+	for m := range c.bclient.Rx {
 		mbytes, err := m.Pack()
 		if err != nil {
 			c.outputError(err)
@@ -141,13 +138,7 @@ func (c *Console) txLine(line []string) bool {
 		return true
 	}
 
-	select {
-	case c.requestTx <- *msg:
-	case <-c.doneRx:
-		return false
-	}
-
-	return true
+	return c.bclient.Send(*msg)
 }
 
 // handleSpecialCommand tries to interpret line as a special command.

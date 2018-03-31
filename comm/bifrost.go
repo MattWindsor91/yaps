@@ -47,9 +47,38 @@ type Bifrost struct {
 	reply chan Response
 }
 
+// BifrostClient is a struct containing channels used to talk to a
+// Bifrost adapter.
+type BifrostClient struct {
+	// Tx is the channel for transmitting requests.
+	Tx chan<- bifrost.Message
+
+	// Rx is the channel for receiving responses.
+	Rx <-chan bifrost.Message
+
+	// Done is a channel that is closed when the Bifrost adapter's
+	// upstream has shut down.
+	Done <-chan struct{}
+}
+
+// Send tries to send a request on a BifrostClient.
+// It returns false if the BifrostClient's upstream has shut down.
+//
+// Send is just sugar over a Select between Tx and Done, and it is
+// ok to do this manually using the channels themselves.
+func (c *BifrostClient) Send(r bifrost.Message) bool {
+	// See Client.Send in controller.go.
+	select {
+	case c.Tx <- r:
+	case <-c.Done:
+		return false
+	}
+	return true
+}
+
 // NewBifrost wraps client inside a Bifrost adapter with request map rmap and response processor respCb.
-// It returns a channel for sending request messages, and one for receiving response messages.
-func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMsgCb) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message, <-chan struct{}) {
+// It returns a BifrostClient for talking to the adapter.
+func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMsgCb) (*Bifrost, *BifrostClient) {
 	response := make(chan bifrost.Message)
 	request := make(chan bifrost.Message)
 	reply := make(chan Response)
@@ -68,7 +97,13 @@ func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMs
 		responseMsgCb: respCb,
 	}
 
-	return &bifrost, request, response, done
+	bcl := BifrostClient{
+		Tx: request,
+		Rx: response,
+		Done: done,
+	}
+
+	return &bifrost, &bcl
 }
 
 func (b *Bifrost) hangup() {
@@ -111,7 +146,7 @@ func (b *Bifrost) Run() {
 }
 
 // Fork creates a new Bifrost adapter with the same parsing logic as b.
-func (b *Bifrost) Fork(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message, <-chan struct{}) {
+func (b *Bifrost) Fork(client *Client) (*Bifrost, *BifrostClient) {
 	// TODO(@MattWindsor91): split config from Bifrost, copy config only.
 	return NewBifrost(client, b.requestMap, b.responseMsgCb)
 }
