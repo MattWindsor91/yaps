@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
 	"github.com/UniversityRadioYork/baps3d/list"
+	"github.com/UniversityRadioYork/baps3d/netclient"	
 )
 
 func copyClient(cli *comm.Client) *comm.Client {
@@ -33,14 +36,16 @@ func copyClient(cli *comm.Client) *comm.Client {
 func main() {
 	lc, cli := list.NewControlledList()
 	go lc.Run()
-
-	tcli := copyClient(cli)
-	
-	lb, ltx, lrx := list.NewBifrost(cli)
-	lb.Fork(tcli)
-	
+	lb, ltx, lrx, ldn := list.NewBifrost(cli)
 	go lb.Run()
-	console, err := console.New(ltx, lrx)
+
+	netLog := log.New(os.Stderr, "net", log.LstdFlags)
+	netClient := copyClient(cli)
+	netBifrost, _, _, _ := lb.Fork(netClient)
+	netSrv := netclient.NewServer(netLog, "localhost:1357", netClient, netBifrost)
+	go netSrv.Run()
+	
+	console, err := console.New(ltx, lrx, ldn)
 	if err != nil {
 		fmt.Println(err)
 		return

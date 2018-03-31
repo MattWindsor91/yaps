@@ -26,6 +26,7 @@ const (
 type Console struct {
 	requestTx  chan<- bifrost.Message
 	responseRx <-chan bifrost.Message
+	doneRx     <- chan struct{}
 	tok        *bifrost.Tokeniser
 	rl         *readline.Instance
 	txrun      bool
@@ -33,7 +34,7 @@ type Console struct {
 
 // New creates a new Console.
 // This can fail if the underlying console library fails.
-func New(requestTx chan<- bifrost.Message, responseRx <-chan bifrost.Message) (*Console, error) {
+func New(requestTx chan<- bifrost.Message, responseRx <-chan bifrost.Message, doneRx <-chan struct{}) (*Console, error) {
 	rl, err := readline.New(promptNormal)
 	if err != nil {
 		return nil, err
@@ -42,6 +43,7 @@ func New(requestTx chan<- bifrost.Message, responseRx <-chan bifrost.Message) (*
 	return &Console{
 		requestTx:  requestTx,
 		responseRx: responseRx,
+		doneRx:     doneRx,
 		tok:        bifrost.NewTokeniser(),
 		rl:         rl,
 	}, nil
@@ -102,24 +104,29 @@ func (c *Console) handleRawLine(bytes []byte) bool {
 		}
 
 		pos += nread
-		c.handleLine(line)
+		if !c.handleLine(line) {
+			// TODO(@MattWindsor91): handle this better
+			c.txrun = false
+		}
 	}
 
 	return false
 }
 
-func (c *Console) handleLine(line []string) {
+func (c *Console) handleLine(line []string) bool {
 	if 0 == len(line) {
-		return
-	}
+		return true
+	} 
 
-	if !c.handleSpecialCommand(line) {
-		// Default behaviour: send as Bifrost message, but with unique tag
-		tline := make([]string, len(line)+1)
-		tline[0] = gentag()
-		copy(tline[1:], line)
-		c.txLine(tline)
+	if c.handleSpecialCommand(line) {
+		return true
 	}
+	
+	// Default behaviour: send as Bifrost message, but with unique tag
+	tline := make([]string, len(line)+1)
+	tline[0] = gentag()
+	copy(tline[1:], line)
+	return c.txLine(tline)
 }
 
 // gentag generates a new, (hopefully) unique tag.
@@ -127,14 +134,20 @@ func gentag() string {
 	return uuid.NewV1().String()
 }
 
-func (c *Console) txLine(line []string) {
+func (c *Console) txLine(line []string) bool {
 	msg, merr := bifrost.LineToMessage(line)
 	if merr != nil {
 		c.outputError(merr)
-		return
+		return true
 	}
 
-	c.requestTx <- *msg
+	select {
+	case c.requestTx <- *msg:
+	case <-c.doneRx:
+		return false
+	}
+
+	return true
 }
 
 // handleSpecialCommand tries to interpret line as a special command.

@@ -33,6 +33,22 @@ type Client struct {
 
 	// Rx is the channel on which the Controller sends status update messages.
 	Rx <-chan Response
+
+	// Done is the channel through which the Controller tells transmitters
+	// that the client has shut down.
+	// It does so by dropping Done.
+	Done <-chan struct{}
+}
+
+// Send tries to send a request on a Client.
+// It returns false if the client has shut down.
+func (c *Client) Send(r Request) bool {
+	select {
+	case c.Tx <- r:
+	case <-c.Done:
+		return false
+	}
+	return true
 }
 
 // Shutdown asks a Client to shut down its Controller.
@@ -40,7 +56,7 @@ type Client struct {
 // but handles the various bits of paperwork.
 func (c *Client) Shutdown() {
 	sdreply := make(chan Response)
-	c.Tx <- Request{
+	if c.Send(Request{
 		Origin: RequestOrigin{
 			// It doesn't matter what we put here:
 			// the only thing that'll contain it is the ACK,
@@ -49,9 +65,10 @@ func (c *Client) Shutdown() {
 			ReplyTx: sdreply,
 		},
 		Body: shutdownRequest{},
+	}) {
+		// Drain the shutdown acknowledgement.
+		<-sdreply
 	}
-	// Drain the shutdown acknowledgement.
-	<-sdreply	
 }
 
 // coclient is the type of internal client handles.
@@ -61,14 +78,18 @@ type coclient struct {
 
 	// rx is the request receiver channel.
 	rx <-chan Request
+
+	// done is the shutdown canary channel.
+	done chan<- struct{}
 }
 
 // makeClient creates a new client and coclient pair.
 func makeClient() (Client, coclient) {
 	rq := make(chan Request)
 	rs := make(chan Response)
-	cli := Client{Tx: rq, Rx: rs}
-	ccl := coclient{tx: rs, rx: rq}
+	dn := make(chan struct{})
+	ccl := coclient{tx: rs, rx: rq, done: dn}
+	cli := Client{Tx: rq, Rx: rs, Done: dn}
 	return cli, ccl
 }
 
@@ -125,10 +146,16 @@ func (c *Controller) Run() {
 	c.hangupClients()
 }
 
+// hangup does the disconnection part of a client hangup.
+func (c *coclient) hangup() {
+	close(c.tx)
+	close(c.done)
+}
+
 // hangupClients hangs up every connected client.
 func (c *Controller) hangupClients() {
 	for cl := range c.clients {
-		close(cl.tx)
+		cl.hangup()
 	}
 	c.clients = make(map[coclient]int)
 	c.rebuildClientSelects()
@@ -146,7 +173,7 @@ func (c *Controller) hangupClientWithCase(i int) {
 
 // hangupClient closes a client's channels and removes it from the client list.
 func (c *Controller) hangupClient(cl coclient) {
-	close(cl.tx)
+	cl.hangup()
 	delete(c.clients, cl)
 	c.rebuildClientSelects()
 

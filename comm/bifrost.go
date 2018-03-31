@@ -23,17 +23,19 @@ type ResponseMsgCb func(string, interface{}, chan<- bifrost.Message) error
 
 // Bifrost is the type of adapters from list Controller clients to Bifrost.
 type Bifrost struct {
-	// reqConTx is the inward channel to which this adapter sends controller requests.
-	reqConTx chan<- Request
-
-	// resConRx is the inward channel from which this adapter receives controller requests.
-	resConRx <-chan Response
-
+	// Client is the inward client the Bifrost adapter is using to talk to
+	// the Controller.
+	client *Client
+	
 	// resMsgTx is the outward channel to which this adapter sends response messages.
 	resMsgTx chan<- bifrost.Message
 
 	// reqMsgRx is the outward channel from which this adapter receives requests.
 	reqMsgRx <-chan bifrost.Message
+
+	// doneMsgTx is the outward channel on which this adapter
+	// sends 'done' signals.
+	doneTx chan<- struct{}
 
 	// requestMap is the map of known Bifrost message words, and their parsers.
 	requestMap map[string]RequestParser
@@ -47,58 +49,70 @@ type Bifrost struct {
 
 // NewBifrost wraps client inside a Bifrost adapter with request map rmap and response processor respCb.
 // It returns a channel for sending request messages, and one for receiving response messages.
-func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMsgCb) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message) {
+func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMsgCb) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message, <-chan struct{}) {
 	response := make(chan bifrost.Message)
 	request := make(chan bifrost.Message)
 	reply := make(chan Response)
+	done := make(chan struct{})
 
 	// This should be idempotent if we're Fork()ing an existing Bifrost
 	addStandardRequests(rmap)
 
 	bifrost := Bifrost{
-		reqConTx:      client.Tx,
-		resConRx:      client.Rx,
+		client:        client,
 		resMsgTx:      response,
 		reqMsgRx:      request,
+		doneTx:        done,
 		reply:         reply,
 		requestMap:    rmap,
 		responseMsgCb: respCb,
 	}
 
-	return &bifrost, request, response
+	return &bifrost, request, response, done
+}
+
+func (b *Bifrost) hangup() {
+	// Don't shut down any of the client's own channels: other code
+	// might still try to use them.
+	// Don't shut down the controller: it might have more clients.
+	close(b.resMsgTx)
+	close(b.doneTx)
 }
 
 // Run runs the main body of the Bifrost adapter.
 // It will immediately send the new client responses to the response channel.
 func (b *Bifrost) Run() {
-	b.handleNewClientResponses()
-MainLoop:
+	defer b.hangup()
+	if !b.handleNewClientResponses() {
+		return
+	}
+
 	for {
+		// Closing the message channel is how the client tells us it has disconnected.
+		// Closing the response channel, or refusing a message,
+		// tells us the controller has shut down.
+		// Either way, we need to close.
+		
 		select {
 		case rq, ok := <-b.reqMsgRx:
-			// Closing the message channel is how the client tells us it has disconnected
-			if !ok {
-				break MainLoop
+			if !ok || !b.handleRequest(rq) {
+				return
 			}
-			b.handleRequest(rq)
 		case rs := <-b.reply:
 			b.handleResponse(rs)
-		case rs, ok := <-b.resConRx:
+		case rs, ok := <-b.client.Rx:
 			// Closing the response channel is how the controller tells us it has shutdown
 			if !ok {
-				break MainLoop
+				return
 			}
 			b.handleResponse(rs)
 		}
 	}
-
-	// Don't shut down the controller: it might have more clients.
-	close(b.reqConTx)
-	close(b.resMsgTx)
 }
 
 // Fork creates a new Bifrost adapter with the same parsing logic as b.
-func (b *Bifrost) Fork(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message) {
+func (b *Bifrost) Fork(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan bifrost.Message, <-chan struct{}) {
+	// TODO(@MattWindsor91): split config from Bifrost, copy config only.
 	return NewBifrost(client, b.requestMap, b.responseMsgCb)
 }
 
@@ -107,14 +121,16 @@ func (b *Bifrost) Fork(client *Client) (*Bifrost, chan<- bifrost.Message, <-chan
 //
 
 // handleRequest handles the request message rq.
-func (b *Bifrost) handleRequest(rq bifrost.Message) {
+// It returns whether or not the client is still able to handle
+// requests.
+func (b *Bifrost) handleRequest(rq bifrost.Message) bool {
 	request, err := b.fromMessage(rq)
 	if err != nil {
 		b.resMsgTx <- *errorToMessage(rq.Tag(), err)
-		return
+		return true
 	}
 
-	b.reqConTx <- *request
+	return b.client.Send(*request)
 }
 
 // fromMessage tries to parse a message as a controller request.
@@ -169,7 +185,8 @@ func parseDumpMessage(args []string) (interface{}, error) {
 //
 
 // handleNewClientResponses handles the new client responses (OHAI, IAMA, etc).
-func (b *Bifrost) handleNewClientResponses() {
+// It returns true if the client hasn't hung up midway through.
+func (b *Bifrost) handleNewClientResponses() bool {
 	// SPEC: see http://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
 
 	// OHAI is a Bifrost-ism, so we don't bother asking the Client about it
@@ -177,21 +194,28 @@ func (b *Bifrost) handleNewClientResponses() {
 
 	// We don't use b.reply here, because we want to suppress ACK.
 	ncreply := make(chan Response)
-	b.reqConTx <- *makeRequest(RoleRequest{}, bifrost.TagBcast, ncreply)
-	b.handleResponsesUntilAck(ncreply)
-	b.reqConTx <- *makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)
-	b.handleResponsesUntilAck(ncreply)
+	if !b.client.Send(*makeRequest(RoleRequest{}, bifrost.TagBcast, ncreply)) {
+		return false
+	}
+	if !b.handleResponsesUntilAck(ncreply) {
+		return false
+	}
+	if !b.client.Send(*makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)) {
+		return false
+	}
+	return b.handleResponsesUntilAck(ncreply)
 }
 
 // handleResponsesUntilAck handles responses on channel c until it receives ACK or the channel closes.
-func (b *Bifrost) handleResponsesUntilAck(c <-chan Response) {
+func (b *Bifrost) handleResponsesUntilAck(c <-chan Response) bool {
 	for r := range c {
 		if _, isAck := r.Body.(AckResponse); isAck {
-			return
+			return true
 		}
 
 		b.handleResponse(r)
 	}
+	return false
 }
 
 // handleResponse handles a controller response rs.
