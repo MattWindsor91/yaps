@@ -8,11 +8,6 @@ import (
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
-// NewControlledList constructs a new List and wraps it in a Controller.
-func NewControlledList() (*comm.Controller, *comm.Client) {
-	return comm.NewController(New())
-}
-
 // RoleName gives the role name for a List Controller.
 func (l *List) RoleName() string {
 	return "list"

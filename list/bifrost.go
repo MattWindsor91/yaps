@@ -1,6 +1,6 @@
 package list
 
-// File list/bifrost.go contains List-specific Bifrost marshalling logic.
+// File list/bifrost.go implements BifrostParser for List.
 // - See `comm/bifrost.go` for the common marshalling logic.
 
 import (
@@ -11,18 +11,20 @@ import (
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
-// NewBifrost wraps client inside a Bifrost adapter for lists.
-func NewBifrost(client *comm.Client) (*comm.Bifrost, *comm.BifrostClient) {
-	return comm.NewBifrost(
-		client,
-		map[string]comm.RequestParser{
-			"auto":   parseAutoMessage,
-			"floadl": parseFloadlMessage,
-			"sel":    parseSelMessage,
-			"tloadl": parseTloadlMessage,
-		},
-		handleResponse,
-	)
+// ParseBifrostRequest handles Bifrost parsing for List controllers.
+func (l *List) ParseBifrostRequest(word string, args []string) (interface{}, error) {
+	switch word {
+	case "auto":
+		return parseAutoMessage(args)
+	case "floadl":
+		return parseFloadlMessage(args)
+	case "sel":
+		return parseSelMessage(args)
+	case "tloadl":
+		return parseTloadlMessage(args)
+	default:
+		return nil, comm.UnknownWord(word)
+	}
 }
 
 //
@@ -90,9 +92,9 @@ func parseItemAddMessage(con func(string, string) *Item, args []string) (interfa
 // Response emitting
 //
 
-// handleResponse handles a controller response with tag tag and body rbody.
+// EmitBifrostResponse handles a controller response with tag tag and body rbody.
 // It sends response messages to msgTx.
-func handleResponse(tag string, rbody interface{}, msgTx chan<- bifrost.Message) (err error) {
+func (l *List) EmitBifrostResponse(tag string, rbody interface{}, msgTx chan<- bifrost.Message) (err error) {
 	switch r := rbody.(type) {
 	case AutoModeResponse:
 		err = handleAutoMode(tag, r, msgTx)

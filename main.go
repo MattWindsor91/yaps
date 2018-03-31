@@ -34,18 +34,19 @@ func copyClient(cli *comm.Client) *comm.Client {
 }
 
 func main() {
-	lc, cli := list.NewControlledList()
-	go lc.Run()
-	lb, lbc := list.NewBifrost(cli)
-	go lb.Run()
+	lst := list.New()
+	lstCon, rootClient := comm.NewController(lst)
+	go lstCon.Run()
 
 	netLog := log.New(os.Stderr, "net", log.LstdFlags)
-	netClient := copyClient(cli)
-	netBifrost, _ := lb.Fork(netClient)
-	netSrv := netclient.NewServer(netLog, "localhost:1357", netClient, netBifrost)
+	netClient := copyClient(rootClient)
+	netSrv := netclient.NewServer(netLog, "localhost:1357", netClient, lst)
 	go netSrv.Run()
 	
-	console, err := console.New(lbc)
+	consoleLstClient := copyClient(rootClient)
+	consoleBf, consoleBfClient := comm.NewBifrost(consoleLstClient, lst)
+	go consoleBf.Run()
+	console, err := console.New(consoleBfClient)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -57,8 +58,8 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println("shutting down")
-	cli.Shutdown()
+	rootClient.Shutdown()
 	fmt.Println("got shutdown request ack")
-	for range lbc.Rx {
+	for range consoleBfClient.Rx {
 	}
 }

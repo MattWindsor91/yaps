@@ -14,12 +14,20 @@ var pversion = "bifrost-0.0.0"
 // sversion is the Baps3D semantic server version.
 var sversion = "baps3d-0.0.0"
 
-// RequestParser is the type of request parsing functions.
-type RequestParser func([]string) (interface{}, error)
+// BifrostParser is the interface of types containing controller-specific parser
+// and emitter functionality.
+// Each Controller creates one, and a Bifrost uses it to translate
+// messages for the Controller's Client into Bifrost messages.
+type BifrostParser interface {
+	ParseBifrostRequest(word string, args []string) (interface{}, error)
+	EmitBifrostResponse(tag string, resp interface{}, out chan<- bifrost.Message) error
+}
 
-// ResponseMsgCb is the type of response marshalling callbacks.
-// It is supplied the response's tag string and body, and a channel for emitting messages.
-type ResponseMsgCb func(string, interface{}, chan<- bifrost.Message) error
+// UnknownWord returns an error for when a Bifrost parser doesn't understand the
+// word w.
+func UnknownWord(w string) error {
+	return fmt.Errorf("unknown word: %s", w)
+}
 
 // Bifrost is the type of adapters from list Controller clients to Bifrost.
 type Bifrost struct {
@@ -37,11 +45,9 @@ type Bifrost struct {
 	// sends 'done' signals.
 	doneTx chan<- struct{}
 
-	// requestMap is the map of known Bifrost message words, and their parsers.
-	requestMap map[string]RequestParser
-
-	// responseMsgCb is the callback for handling Bifrost responses.
-	responseMsgCb ResponseMsgCb
+	// parser is some type that provides parsers and emitters for Bifrost
+	// messages.
+	parser BifrostParser
 
 	// reply is the channel this adapter uses to service replies to requests it sends to the client.
 	reply chan Response
@@ -76,16 +82,14 @@ func (c *BifrostClient) Send(r bifrost.Message) bool {
 	return true
 }
 
-// NewBifrost wraps client inside a Bifrost adapter with request map rmap and response processor respCb.
+// NewBifrost wraps client inside a Bifrost adapter with parsing and emitting
+// done by parser.
 // It returns a BifrostClient for talking to the adapter.
-func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMsgCb) (*Bifrost, *BifrostClient) {
+func NewBifrost(client *Client, parser BifrostParser) (*Bifrost, *BifrostClient) {
 	response := make(chan bifrost.Message)
 	request := make(chan bifrost.Message)
 	reply := make(chan Response)
 	done := make(chan struct{})
-
-	// This should be idempotent if we're Fork()ing an existing Bifrost
-	addStandardRequests(rmap)
 
 	bifrost := Bifrost{
 		client:        client,
@@ -93,8 +97,7 @@ func NewBifrost(client *Client, rmap map[string]RequestParser, respCb ResponseMs
 		reqMsgRx:      request,
 		doneTx:        done,
 		reply:         reply,
-		requestMap:    rmap,
-		responseMsgCb: respCb,
+		parser:        parser,
 	}
 
 	bcl := BifrostClient{
@@ -145,12 +148,6 @@ func (b *Bifrost) Run() {
 	}
 }
 
-// Fork creates a new Bifrost adapter with the same parsing logic as b.
-func (b *Bifrost) Fork(client *Client) (*Bifrost, *BifrostClient) {
-	// TODO(@MattWindsor91): split config from Bifrost, copy config only.
-	return NewBifrost(client, b.requestMap, b.responseMsgCb)
-}
-
 //
 // Request parsing
 //
@@ -170,17 +167,23 @@ func (b *Bifrost) handleRequest(rq bifrost.Message) bool {
 
 // fromMessage tries to parse a message as a controller request.
 func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
-	parser, ok := b.requestMap[m.Word()]
-	if !ok {
-		return nil, fmt.Errorf("unknown word: %s", m.Word())
-	}
-
-	rbody, err := parser(m.Args())
+	rbody, err := b.bodyFromMessage(m)
 	if err != nil {
 		return nil, err
 	}
 
 	return makeRequest(rbody, m.Tag(), b.reply), nil
+}
+
+// bodyFromMessage tries to parse a message as the body of a controller request.
+func (b *Bifrost) bodyFromMessage(m bifrost.Message) (interface{}, error) {
+	// Standard requests first.
+	switch m.Word() {
+	case "dump":
+		return parseDumpMessage(m.Args())
+	default:
+		return b.parser.ParseBifrostRequest(m.Word(), m.Args())
+	}
 }
 
 // makeRequest creates a request with body rbody, tag tag, and reply channel rch.
@@ -200,11 +203,6 @@ func makeRequest(rbody interface{}, tag string, rch chan<- Response) *Request {
 //
 // Standard request parsers
 //
-
-// addStandardRequests adds the standard request parsers to rmap.
-func addStandardRequests(rmap map[string]RequestParser) {
-	rmap["dump"] = parseDumpMessage
-}
 
 // parseDumpMessage tries to parse a 'dump' message.
 func parseDumpMessage(args []string) (interface{}, error) {
@@ -265,7 +263,7 @@ func (b *Bifrost) handleResponse(rs Response) {
 	case RoleResponse:
 		err = b.handleRole(tag, r)
 	default:
-		err = b.responseMsgCb(tag, r, b.resMsgTx)
+		err = b.parser.EmitBifrostResponse(tag, r, b.resMsgTx)
 	}
 
 	if err != nil {
