@@ -4,6 +4,7 @@ package comm
 // The baps3d state must satisfy the 'Controllable' interface.
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -54,23 +55,56 @@ func (c *Client) Send(r Request) bool {
 	return true
 }
 
+// Copy copies a Client, creating a new handle to the Client's Controller.
+// The new Client will be separate from this Client: it is ok to dispose of the
+// original.
+//
+// Under the hood, this causes a request to be sent to the Controller goroutine,
+// so the Copy will only succeed when the Controller is able to process it.
+//
+// If Copy returns an error, then the Controller shut down during the copy.
+func (c *Client) Copy() (*Client, error) {
+	reply := make(chan Response)
+	if !c.Send(Request{
+		Origin: RequestOrigin{
+			Tag:     "",
+			ReplyTx: reply,
+		},
+		Body: newClientRequest{},
+	}) {
+		return nil, fmt.Errorf("controller shut down while copying")
+	}
+	var ncli *Client
+	for {
+		// TODO(@MattWindsor91): be more robust if these don't appear
+		// in order
+		r := <-reply
+		switch b := r.Body.(type) {
+		case newClientResponse:
+			ncli = b.Client
+		case AckResponse:
+			return ncli, nil
+		}
+	}
+}
+
 // Shutdown asks a Client to shut down its Controller.
 // This is equivalent to sending a ShutdownRequest through the Client,
 // but handles the various bits of paperwork.
 func (c *Client) Shutdown() {
-	sdreply := make(chan Response)
+	reply := make(chan Response)
 	if c.Send(Request{
 		Origin: RequestOrigin{
 			// It doesn't matter what we put here:
 			// the only thing that'll contain it is the ACK,
 			// which we bin.
 			Tag:     "",
-			ReplyTx: sdreply,
+			ReplyTx: reply,
 		},
 		Body: shutdownRequest{},
 	}) {
 		// Drain the shutdown acknowledgement.
-		<-sdreply
+		<-reply
 	}
 }
 
@@ -202,7 +236,7 @@ func (c *Controller) handleRequest(rq Request) {
 		err = c.handleRoleRequest(o, body)
 	case DumpRequest:
 		err = c.handleDumpRequest(o, body)
-	case NewClientRequest:
+	case newClientRequest:
 		err = c.handleNewClientRequest(o, body)
 	case shutdownRequest:
 		err = c.handleShutdownRequest(o, body)
@@ -229,9 +263,9 @@ func (c *Controller) handleDumpRequest(o RequestOrigin, b DumpRequest) error {
 }
 
 // handleNewClientRequest handles a new client request with origin o and body b.
-func (c *Controller) handleNewClientRequest(o RequestOrigin, b NewClientRequest) error {
+func (c *Controller) handleNewClientRequest(o RequestOrigin, b newClientRequest) error {
 	cl := c.makeAndAddClient()
-	c.reply(o, NewClientResponse{Client: cl})
+	c.reply(o, newClientResponse{Client: cl})
 
 	// New client requests never fail
 	return nil

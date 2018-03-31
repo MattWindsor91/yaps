@@ -25,14 +25,19 @@ type AckResponse struct {
 	Err error
 }
 
-// NewClientResponse responds to a request for a new client connection.
-type NewClientResponse struct {
-	// Client is the new client connector.
-	Client *Client
-}
-
 // RoleResponse announces the Controller's Bifrost role.
 type RoleResponse struct {
 	// Role is the role of the Controller.
 	Role string
 }
+
+//
+// Internal response bodies
+//
+
+// newClientResponse responds to a request for a new client connection.
+type newClientResponse struct {
+	// Client is the new client connector.
+	Client *Client
+}
+

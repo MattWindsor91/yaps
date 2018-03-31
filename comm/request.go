@@ -28,13 +28,19 @@ type Request struct {
 // DumpRequest requests an information dump.
 type DumpRequest struct{}
 
-// NewClientRequest requests that the Controller add a new client.
-// It will result in a NewClientResponse reply with the client connector.
-type NewClientRequest struct{}
-
 // RoleRequest requests the Bifrost role of the connected Controller.
 // It will result in a RoleResponse reply.
 type RoleRequest struct{}
+
+//
+// Internal request bodies
+//
+
+// newClientRequest requests that the Controller add a new client.
+// It will result in a newClientResponse reply with the client connector.
+//
+// This is kept private because clients should instead call Client.Copy.
+type newClientRequest struct{}
 
 // shutdownRequest requests a shutdown.
 // The Controller will not reply, other than immediately sending an AckResponse.
