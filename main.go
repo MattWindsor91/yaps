@@ -9,14 +9,14 @@ import (
 	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
 	"github.com/UniversityRadioYork/baps3d/list"
-	"github.com/UniversityRadioYork/baps3d/netsrv"	
+	"github.com/UniversityRadioYork/baps3d/netsrv"
 )
 
 func main() {
 	var wg sync.WaitGroup
-	
+
 	rootLog := log.New(os.Stderr, "[root] ", log.LstdFlags)
-	
+
 	lst := list.New()
 	lstCon, rootClient := comm.NewController(lst)
 	wg.Add(1)
@@ -37,7 +37,7 @@ func main() {
 		netSrv.Run()
 		wg.Done()
 	}()
-	
+
 	consoleClient, err := rootClient.Copy()
 	if err != nil {
 		rootLog.Println("couldn't create console client:", err)
@@ -49,7 +49,7 @@ func main() {
 		consoleBf.Run()
 		wg.Done()
 	}()
-	
+
 	console, err := console.New(consoleBfClient)
 	if err != nil {
 		rootLog.Println("couldn't bring up console:", err)
@@ -61,13 +61,13 @@ func main() {
 		console.RunRx()
 		wg.Done()
 	}()
-	
+
 	console.RunTx()
-	
+
 	if err = console.Close(); err != nil {
 		fmt.Println(err)
 	}
-	
+
 	fmt.Println("shutting down")
 	rootClient.Shutdown()
 	fmt.Println("got shutdown request ack")

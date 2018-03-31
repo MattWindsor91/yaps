@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
-	"github.com/UniversityRadioYork/baps3d/comm"	
+	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/chzyer/readline"
 	"github.com/satori/go.uuid"
 )
@@ -25,10 +25,10 @@ const (
 
 // Console provides a readline-style console for sending Bifrost messages to a controller.
 type Console struct {
-	bclient    *comm.BifrostClient
-	tok        *bifrost.Tokeniser
-	rl         *readline.Instance
-	txrun      bool
+	bclient *comm.BifrostClient
+	tok     *bifrost.Tokeniser
+	rl      *readline.Instance
+	txrun   bool
 }
 
 // New creates a new Console.
@@ -40,9 +40,9 @@ func New(bclient *comm.BifrostClient) (*Console, error) {
 	}
 
 	return &Console{
-		bclient:    bclient,
-		tok:        bifrost.NewTokeniser(),
-		rl:         rl,
+		bclient: bclient,
+		tok:     bifrost.NewTokeniser(),
+		rl:      rl,
 	}, nil
 }
 
@@ -62,7 +62,7 @@ func (c *Console) RunRx() {
 			c.outputError(err)
 			return
 		}
-		
+
 		c.outputMessage(mbytes)
 	}
 }
@@ -115,12 +115,12 @@ func (c *Console) handleRawLine(bytes []byte) bool {
 func (c *Console) handleLine(line []string) bool {
 	if 0 == len(line) {
 		return true
-	} 
+	}
 
 	if c.handleSpecialCommand(line) {
 		return true
 	}
-	
+
 	// Default behaviour: send as Bifrost message, but with unique tag
 	tline := make([]string, len(line)+1)
 	tline[0] = gentag()

@@ -3,7 +3,7 @@ package netsrv
 import (
 	"log"
 	"net"
-	
+
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
@@ -18,7 +18,7 @@ type Server struct {
 	// rootClient is a controller Client the Server can clone for
 	// use by incoming connections.
 	rootClient *comm.Client
-	
+
 	// rootBifrost is a Bifrost parser the Server can use for
 	// incoming connections.
 	rootBifrost comm.BifrostParser
@@ -31,7 +31,7 @@ type Server struct {
 type client struct {
 	// conn holds the client socket.
 	conn net.Conn
-	
+
 	// buf holds the client buffer.
 	buf [4096]byte
 }
@@ -42,13 +42,13 @@ func (c *client) Close() {
 }
 
 // New creates a new network server for a baps3d instance.
-func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) (*Server) {
+func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) *Server {
 	return &Server{
-		l: l,
-		host: host,
-		rootClient: rc,
+		l:           l,
+		host:        host,
+		rootClient:  rc,
 		rootBifrost: rb,
-		clients: make(map[client]struct{}),
+		clients:     make(map[client]struct{}),
 	}
 }
 
@@ -80,10 +80,10 @@ func (s *Server) hangUpClient(c *client) {
 	c.Close()
 	delete(s.clients, *c)
 }
-	
+
 func (s *Server) Run() {
 	defer s.shutdownController()
-	
+
 	ln, err := net.Listen("tcp", s.host)
 	if err != nil {
 		s.l.Println("couldn't open server:", err)
@@ -95,7 +95,7 @@ func (s *Server) Run() {
 
 	connCh := make(chan net.Conn)
 	cerrCh := make(chan error)
-	
+
 	go acceptClients(ln, connCh, cerrCh)
 
 	for {
@@ -125,5 +125,5 @@ func acceptClients(ln net.Listener, connCh chan<- net.Conn, cerrCh chan<- error)
 			return
 		}
 		connCh <- conn
-	}	
+	}
 }

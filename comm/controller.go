@@ -95,7 +95,7 @@ func (c *Client) Shutdown() {
 	if c.Tx == nil {
 		panic("double shutdown of client")
 	}
-	
+
 	reply := make(chan Response)
 	if c.Send(Request{
 		Origin: RequestOrigin{

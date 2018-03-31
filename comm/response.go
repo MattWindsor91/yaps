@@ -40,4 +40,3 @@ type newClientResponse struct {
 	// Client is the new client connector.
 	Client *Client
 }
-

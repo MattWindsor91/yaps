@@ -34,7 +34,7 @@ type Bifrost struct {
 	// Client is the inward client the Bifrost adapter is using to talk to
 	// the Controller.
 	client *Client
-	
+
 	// resMsgTx is the outward channel to which this adapter sends response messages.
 	resMsgTx chan<- bifrost.Message
 
@@ -86,23 +86,23 @@ func (c *BifrostClient) Send(r bifrost.Message) bool {
 // done by parser.
 // It returns a BifrostClient for talking to the adapter.
 func NewBifrost(client *Client, parser BifrostParser) (*Bifrost, *BifrostClient) {
-response := make(chan bifrost.Message)
+	response := make(chan bifrost.Message)
 	request := make(chan bifrost.Message)
 	reply := make(chan Response)
 	done := make(chan struct{})
 
 	bifrost := Bifrost{
-		client:        client,
-		resMsgTx:      response,
-		reqMsgRx:      request,
-		doneTx:        done,
-		reply:         reply,
-		parser:        parser,
+		client:   client,
+		resMsgTx: response,
+		reqMsgRx: request,
+		doneTx:   done,
+		reply:    reply,
+		parser:   parser,
 	}
 
 	bcl := BifrostClient{
-		Tx: request,
-		Rx: response,
+		Tx:   request,
+		Rx:   response,
 		Done: done,
 	}
 
@@ -121,7 +121,7 @@ func (b *Bifrost) Close() {
 // It will immediately send the new client responses to the response channel.
 func (b *Bifrost) Run() {
 	defer b.Close()
-	
+
 	if !b.handleNewClientResponses() {
 		return
 	}
@@ -131,7 +131,7 @@ func (b *Bifrost) Run() {
 		// Closing the response channel, or refusing a message,
 		// tells us the controller has shut down.
 		// Either way, we need to close.
-		
+
 		select {
 		case rq, ok := <-b.reqMsgRx:
 			if !ok || !b.handleRequest(rq) {
