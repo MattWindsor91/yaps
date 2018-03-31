@@ -35,6 +35,25 @@ type Client struct {
 	Rx <-chan Response
 }
 
+// Shutdown asks a Client to shut down its Controller.
+// This is equivalent to sending a ShutdownRequest through the Client,
+// but handles the various bits of paperwork.
+func (c *Client) Shutdown() {
+	sdreply := make(chan Response)
+	c.Tx <- Request{
+		Origin: RequestOrigin{
+			// It doesn't matter what we put here:
+			// the only thing that'll contain it is the ACK,
+			// which we bin.
+			Tag:     "",
+			ReplyTx: sdreply,
+		},
+		Body: shutdownRequest{},
+	}
+	// Drain the shutdown acknowledgement.
+	<-sdreply	
+}
+
 // coclient is the type of internal client handles.
 type coclient struct {
 	// tx is the status update send channel.
@@ -155,7 +174,7 @@ func (c *Controller) handleRequest(rq Request) {
 		err = c.handleDumpRequest(o, body)
 	case NewClientRequest:
 		err = c.handleNewClientRequest(o, body)
-	case ShutdownRequest:
+	case shutdownRequest:
 		err = c.handleShutdownRequest(o, body)
 	default:
 		replyCb := func(rbody interface{}) {
@@ -197,7 +216,7 @@ func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
 }
 
 // handleShutdownRequest handles a shutdown request with origin o and body b.
-func (c *Controller) handleShutdownRequest(o RequestOrigin, b ShutdownRequest) error {
+func (c *Controller) handleShutdownRequest(o RequestOrigin, b shutdownRequest) error {
 	// We don't do the shutdown here, but instead when we go round the main loop.
 	c.running = false
 	return nil

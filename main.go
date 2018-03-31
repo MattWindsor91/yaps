@@ -52,16 +52,7 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println("shutting down")
-	sdreply := make(chan comm.Response)
-	cli.Tx <- comm.Request{
-		Origin: comm.RequestOrigin{
-			Tag:     bifrost.TagUnknown,
-			ReplyTx: sdreply,
-		},
-		Body: comm.ShutdownRequest{},
-	}
-	fmt.Println("sent shutdown request")
-	<-sdreply
+	cli.Shutdown()
 	fmt.Println("got shutdown request ack")
 	for range lrx {
 	}

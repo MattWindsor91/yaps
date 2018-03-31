@@ -36,7 +36,9 @@ type NewClientRequest struct{}
 // It will result in a RoleResponse reply.
 type RoleRequest struct{}
 
-// ShutdownRequest requests a shutdown.
+// shutdownRequest requests a shutdown.
 // The Controller will not reply, other than immediately sending an AckResponse.
 // The shutdown is complete when the Controller closes this client's response channel.
-type ShutdownRequest struct{}
+//
+// This is kept private because clients should instead call Client.Shutdown.
+type shutdownRequest struct{}
