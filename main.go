@@ -9,7 +9,7 @@ import (
 	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
 	"github.com/UniversityRadioYork/baps3d/list"
-	"github.com/UniversityRadioYork/baps3d/netclient"	
+	"github.com/UniversityRadioYork/baps3d/netsrv"	
 )
 
 func copyClient(cli *comm.Client) *comm.Client {
@@ -40,7 +40,7 @@ func main() {
 
 	netLog := log.New(os.Stderr, "net", log.LstdFlags)
 	netClient := copyClient(rootClient)
-	netSrv := netclient.NewServer(netLog, "localhost:1357", netClient, lst)
+	netSrv := netsrv.New(netLog, "localhost:1357", netClient, lst)
 	go netSrv.Run()
 	
 	consoleLstClient := copyClient(rootClient)

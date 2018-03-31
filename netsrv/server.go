@@ -1,4 +1,4 @@
-package netclient
+package netsrv
 
 import (
 	"log"
@@ -24,8 +24,8 @@ type Server struct {
 	rootBifrost comm.BifrostParser
 }
 
-// NewServer creates a new network server for a baps3d instance.
-func NewServer(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) (*Server) {
+// New creates a new network server for a baps3d instance.
+func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) (*Server) {
 	return &Server{
 		l: l,
 		host: host,
