@@ -103,3 +103,13 @@ type coclient struct {
 	// done is the shutdown canary channel.
 	done chan<- struct{}
 }
+
+// makeClient creates a new client and coclient pair.
+func makeClient() (Client, coclient) {
+	rq := make(chan Request)
+	rs := make(chan Response)
+	dn := make(chan struct{})
+	ccl := coclient{tx: rs, rx: rq, done: dn}
+	cli := Client{Tx: rq, Rx: rs, Done: dn}
+	return cli, ccl
+}

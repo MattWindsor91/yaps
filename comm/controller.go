@@ -7,7 +7,8 @@ import (
 	"reflect"
 )
 
-// Controller wraps a List in a channel-based interface.
+// Controller wraps a baps3d service in a channel-based interface.
+// The service must satisfy the 'Controllable' interface.
 type Controller struct {
 	// state is the internal state managed by the Controller.
 	state Controllable
@@ -24,16 +25,6 @@ type Controller struct {
 	// running is the internal is-running flag.
 	// When this is set to false, the controller loop will exit.
 	running bool
-}
-
-// makeClient creates a new client and coclient pair.
-func makeClient() (Client, coclient) {
-	rq := make(chan Request)
-	rs := make(chan Response)
-	dn := make(chan struct{})
-	ccl := coclient{tx: rs, rx: rq, done: dn}
-	cli := Client{Tx: rq, Rx: rs, Done: dn}
-	return cli, ccl
 }
 
 // makeAndAddClient creates a new client and coclient pair, and adds the coclient to c's clients.
