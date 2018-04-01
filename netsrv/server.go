@@ -116,7 +116,7 @@ func (s *Server) hangUpClient(c *client) {
 	delete(s.clients, *c)
 }
 
-// Run runs the net server main loop.
+// Run prepares and runs the net server main loop.
 func (s *Server) Run() {
 	defer s.wg.Wait()
 	defer s.shutdownController()
@@ -127,17 +127,6 @@ func (s *Server) Run() {
 		return
 	}
 
-	defer func() {
-		// Signal we've left the main loop
-		close(s.done)
-
-		s.hangUpAllClients()
-		if err := ln.Close(); err != nil {
-			s.l.Println("error closing listener:", err)
-		}
-		s.l.Println("closed listener")
-	}()
-
 	s.l.Println("now listening on", s.host)
 	s.wg.Add(1)
 	go func() {
@@ -145,6 +134,18 @@ func (s *Server) Run() {
 		s.wg.Done()
 	}()
 
+	s.mainLoop()
+
+	close(s.done)
+	s.hangUpAllClients()
+	if err := ln.Close(); err != nil {
+		s.l.Println("error closing listener:", err)
+	}
+	s.l.Println("closed listener")
+}
+
+// mainLoop is the server's main connection handling loop.
+func (s *Server) mainLoop() {
 	for {
 		select {
 		case err := <-s.accErr:
