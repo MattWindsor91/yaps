@@ -27,6 +27,30 @@ type Server struct {
 	// clients is a map containing all connected clients.
 	clients map[client]struct{}
 
+	// accConn is a channel used by the acceptor goroutine to send new
+	// connections to the main goroutine.
+	accConn chan net.Conn
+
+	// accErr is a channel used by the acceptor goroutine to send errors
+	// to the main goroutine.
+	// Errors landing from accErr are considered fatal.
+	accErr chan error
+
+	// clientHangUp is a channel used by client goroutines to send
+	// disconnections to the main goroutine.
+	// It sends a pointer to the client to disconnect.
+	clientHangUp chan *client
+
+	// clientErr is a channel used by client goroutines to send
+	// errors to the main goroutine.
+	// The client will send a hangup request if the error is fatal.
+	clientErr chan error
+
+	// done is a channel closed when the main loop terminates.
+	// This is used to signal all goroutines to close, if they haven't
+	// already.
+	done chan struct{}
+
 	// wg is a WaitGroup that tracks all inner server goroutines.
 	// The server main loop won't terminate until the WaitGroup hits zero.
 	wg sync.WaitGroup
@@ -49,11 +73,16 @@ func (c *client) Close() {
 // New creates a new network server for a baps3d instance.
 func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) *Server {
 	return &Server{
-		l:           l,
-		host:        host,
-		rootClient:  rc,
-		rootBifrost: rb,
-		clients:     make(map[client]struct{}),
+		l:            l,
+		host:         host,
+		rootClient:   rc,
+		rootBifrost:  rb,
+		accConn:      make(chan net.Conn),
+		accErr:       make(chan error),
+		clientHangUp: make(chan *client),
+		clientErr:    make(chan error),
+		done:         make(chan struct{}),
+		clients:      make(map[client]struct{}),
 	}
 }
 
@@ -98,36 +127,30 @@ func (s *Server) Run() {
 		return
 	}
 
-	connCh := make(chan net.Conn)
-	cerrCh := make(chan error)
-
 	defer func() {
+		// Signal we've left the main loop
+		close(s.done)
+
 		s.hangUpAllClients()
 		if err := ln.Close(); err != nil {
 			s.l.Println("error closing listener:", err)
 		}
 		s.l.Println("closed listener")
-
-		// The acceptor is going to send us a 'my listener has closed!'
-		// error, then close the channel.  This means we'll have to
-		// pretend to listen for that error first.
-		for _ = range cerrCh {
-		}
 	}()
 
 	s.l.Println("now listening on", s.host)
 	s.wg.Add(1)
 	go func() {
-		s.acceptClients(ln, connCh, cerrCh)
+		s.acceptClients(ln)
 		s.wg.Done()
 	}()
 
 	for {
 		select {
-		case err := <-cerrCh:
+		case err := <-s.accErr:
 			s.l.Println("error accepting connections:", err)
 			return
-		case conn := <-connCh:
+		case conn := <-s.accConn:
 			s.newClient(conn)
 		case <-s.rootClient.Done:
 			s.l.Println("received controller shutdown")
@@ -139,19 +162,24 @@ func (s *Server) Run() {
 // acceptClients keeps spinning, accepting clients on ln and sending them to
 // connCh, until ln closes.
 // It then sends the error on errCh and closes both channels.
-func (s *Server) acceptClients(ln net.Listener, connCh chan<- net.Conn, cerrCh chan<- error) {
+func (s *Server) acceptClients(ln net.Listener) {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			cerrCh <- err
-			close(cerrCh)
+			// Only send the error if the main loop is listening
+			select {
+			case s.accErr <- err:
+			case <-s.done:
+			}
+			close(s.accErr)
+			close(s.accConn)
 			return
 		}
+
+		// Only forward connections if the main loop actually wants them
 		select {
-		case connCh <- conn:
-		case <-s.rootClient.Done:
-			// The main loop will have closed, so won't be listening
-			// for connections, but we're waiting for it to close our acceptor.
+		case s.accConn <- conn:
+		case <-s.done:
 			// TODO(@MattWindsor91): necessary?
 			conn.Close()
 		}
