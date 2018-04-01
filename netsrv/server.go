@@ -63,10 +63,18 @@ type client struct {
 
 	// buf holds the client buffer.
 	buf [4096]byte
+
+	// conClient is the client's Client for the Controller for this
+	// server.
+	conClient *comm.Client
+
+	// conBifrost is the Bifrost adapter for conClient.
+	conBifrost *comm.BifrostClient
 }
 
 // Close closes the given client.
 func (c *client) Close() {
+	// TODO(@MattWindsor91): disconnect client and bifrost
 	c.conn.Close()
 }
 
@@ -92,14 +100,26 @@ func (s *Server) shutdownController() {
 }
 
 // newClient sets up the server s to handle incoming connection c.
-func (s *Server) newClient(c net.Conn) {
+func (s *Server) newClient(c net.Conn) error {
 	s.l.Println("new connection:", c.RemoteAddr().String())
 
+	conClient, err := s.rootClient.Copy()
+	if err == nil {
+		c.Close()
+		return err
+	}
+	_, conBifrostClient := comm.NewBifrost(conClient, s.rootBifrost)
 	cli := client{
-		conn: c,
+		conn:       c,
+		conClient:  conClient,
+		conBifrost: conBifrostClient,
 	}
 
 	s.clients[cli] = struct{}{}
+
+	// TODO(@MattWindsor91): spin up goroutines
+
+	return nil
 }
 
 // hangUpAllClients gracefully closes all connected clients on s.
