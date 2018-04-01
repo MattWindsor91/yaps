@@ -80,12 +80,6 @@ func (c *Controller) Run() {
 	c.hangUpClients()
 }
 
-// Close does the disconnection part of a client hangup.
-func (c *coclient) Close() {
-	close(c.tx)
-	close(c.done)
-}
-
 // hangUpClients hangs up every connected client.
 func (c *Controller) hangUpClients() {
 	for cl := range c.clients {

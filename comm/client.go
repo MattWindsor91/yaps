@@ -104,6 +104,12 @@ type coclient struct {
 	done chan<- struct{}
 }
 
+// Close does the disconnection part of a client hangup.
+func (c *coclient) Close() {
+	close(c.tx)
+	close(c.done)
+}
+
 // makeClient creates a new client and coclient pair.
 func makeClient() (Client, coclient) {
 	rq := make(chan Request)
