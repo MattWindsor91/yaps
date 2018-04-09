@@ -103,44 +103,64 @@ func (c *Console) handleRawLine(bytes []byte) bool {
 		}
 
 		pos += nread
-		if !c.handleLine(line) {
-			// TODO(@MattWindsor91): handle this better
-			c.txrun = false
+
+		txrun, err := c.handleLine(line)
+		// TODO(@MattWindsor91): handle txrun better?
+		c.txrun = txrun
+
+		if err != nil {
+			c.outputError(err)
 		}
 	}
 
 	return false
 }
 
-func (c *Console) handleLine(line []string) bool {
+// handleLine interprets a line (word array) as a console command.
+// The line should have been tokenised using Bifrost tokenisation rules.
+// If the line is a special command (starts with /), it is handled accordingly.
+// Otherwise, it is considered a tagless Bifrost message.
+//
+// Returns whether the upstream client is still taking messages, and any errors
+// arising from processing the line.
+func (c *Console) handleLine(line []string) (bool, error) {
 	if 0 == len(line) {
-		return true
+		return true, nil
 	}
 
 	if c.handleSpecialCommand(line) {
-		return true
+		return true, nil
 	}
 
 	// Default behaviour: send as Bifrost message, but with unique tag
+	tag, err := gentag()
+	if err != nil {
+		return true, err
+	}
+
 	tline := make([]string, len(line)+1)
-	tline[0] = gentag()
+	tline[0] = tag
 	copy(tline[1:], line)
 	return c.txLine(tline)
 }
 
 // gentag generates a new, (hopefully) unique tag.
-func gentag() string {
-	return uuid.NewV1().String()
+// It may return an error if the
+func gentag() (string, error) {
+	id, err := uuid.NewV1()
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
 
-func (c *Console) txLine(line []string) bool {
+func (c *Console) txLine(line []string) (bool, error) {
 	msg, merr := bifrost.LineToMessage(line)
 	if merr != nil {
-		c.outputError(merr)
-		return true
+		return true, merr
 	}
 
-	return c.bclient.Send(*msg)
+	return c.bclient.Send(*msg), nil
 }
 
 // handleSpecialCommand tries to interpret line as a special command.
