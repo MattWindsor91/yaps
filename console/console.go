@@ -128,8 +128,9 @@ func (c *Console) handleLine(line []string) (bool, error) {
 		return true, nil
 	}
 
-	if c.handleSpecialCommand(line) {
-		return true, nil
+	// Assume that err will be nil if !issc.
+	if issc, scerr := c.handleSpecialCommand(line); issc {
+		return true, scerr
 	}
 
 	// Default behaviour: send as Bifrost message, but with unique tag
@@ -164,35 +165,37 @@ func (c *Console) txLine(line []string) (bool, error) {
 }
 
 // handleSpecialCommand tries to interpret line as a special command.
-// If line is a special command, it processes line and returns true.
-// If not, it returns false and the line should be processed as a raw message.
+// If line is a special command, it processes line and returns true, and any
+// errors that occur during processing.
+// If not, it returns false/nil, and the line should be processed as a raw
+// message.
 // line must be non-empty.
-func (c *Console) handleSpecialCommand(line []string) bool {
-	if scword, issc := parseSpecialCommand(line[0]); issc {
-		var err error
-
-		switch scword {
-		case "quit":
-			// Quit
-			if 1 != len(line) {
-				err = fmt.Errorf("bad arity")
-				break
-			}
-			c.txrun = false
-		case "tag":
-			// Send message with specific tag
-			c.txLine(line[1:])
-		default:
-			err = fmt.Errorf("unknown sc")
-		}
-
-		if err != nil {
-			c.outputError(err)
-		}
-
-		return true
+func (c *Console) handleSpecialCommand(line []string) (bool, error) {
+	scword, issc := parseSpecialCommand(line[0])
+	if !issc {
+		return false, nil
 	}
-	return false
+
+	switch scword {
+	case "quit":
+		return true, c.handleQuit(line)
+	case "tag":
+		// Send message with specific tag
+		c.txLine(line[1:])
+		return true, nil
+	default:
+		return true, fmt.Errorf("unknown sc")
+	}
+}
+
+// handleQuit handles a quit message.
+func (c *Console) handleQuit(line []string) error {
+	if 1 != len(line) {
+		return fmt.Errorf("bad arity")
+	}
+
+	c.txrun = false
+	return nil
 }
 
 // parseSpecialCommand tries to interpret word as a special command.
