@@ -104,9 +104,9 @@ func (c *Console) handleRawLine(bytes []byte) bool {
 
 		pos += nread
 
-		txrun, err := c.handleLine(line)
+		clientok, err := c.handleLine(line)
 		// TODO(@MattWindsor91): handle txrun better?
-		c.txrun = txrun
+		c.txrun = c.txrun && clientok
 
 		if err != nil {
 			c.outputError(err)
