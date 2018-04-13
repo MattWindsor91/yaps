@@ -73,9 +73,9 @@ type client struct {
 }
 
 // Close closes the given client.
-func (c *client) Close() {
+func (c *client) Close() error {
 	// TODO(@MattWindsor91): disconnect client and bifrost
-	c.conn.Close()
+	return c.conn.Close()
 }
 
 // New creates a new network server for a baps3d instance.
@@ -105,7 +105,7 @@ func (s *Server) newClient(c net.Conn) error {
 
 	conClient, err := s.rootClient.Copy()
 	if err != nil {
-		c.Close()
+		_ = c.Close()
 		return err
 	}
 	_, conBifrostClient := comm.NewBifrost(conClient, s.rootBifrost)
@@ -131,8 +131,11 @@ func (s *Server) hangUpAllClients() {
 
 // hangUpClient closes the client pointed to by c.
 func (s *Server) hangUpClient(c *client) {
-	s.l.Println("hanging up:", c.conn.RemoteAddr().String())
-	c.Close()
+	cname := c.conn.RemoteAddr().String()
+	s.l.Println("hanging up:", cname)
+	if err := c.Close(); err != nil {
+		s.l.Printf("couldn't gracefully close %s: %s\n", cname, err.Error())
+	}
 	delete(s.clients, *c)
 }
 
@@ -205,7 +208,7 @@ func (s *Server) acceptClients(ln net.Listener) {
 		case s.accConn <- conn:
 		case <-s.done:
 			// TODO(@MattWindsor91): necessary?
-			conn.Close()
+			_ = conn.Close()
 		}
 	}
 }
