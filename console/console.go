@@ -60,10 +60,12 @@ func (c *Console) RunRx() {
 		mbytes, err := m.Pack()
 		if err != nil {
 			c.outputError(err)
-			return
+			continue
 		}
 
-		c.outputMessage(mbytes)
+		if err := c.outputMessage(mbytes); err != nil {
+			c.outputError(err)
+		}
 	}
 }
 
@@ -209,22 +211,17 @@ func parseSpecialCommand(word string) (string, bool) {
 }
 
 // outputMessage outputs a packed message to stdout.
-func (c *Console) outputMessage(mbytes []byte) {
-	var err error
+func (c *Console) outputMessage(mbytes []byte) error {
 	buf := bytes.NewBufferString(prefixMessage)
-	if _, err = buf.WriteRune(' '); err != nil {
-		c.outputError(err)
-		return
+	if _, err := buf.WriteRune(' '); err != nil {
+		return err
 	}
 	// mbytes will include the newline.
-	if _, err = buf.Write(mbytes); err != nil {
-		c.outputError(err)
-		return
+	if _, err := buf.Write(mbytes); err != nil {
+		return err
 	}
-	if _, err = buf.WriteTo(c.rl.Stdout()); err != nil {
-		c.outputError(err)
-		return
-	}
+	_, err := buf.WriteTo(c.rl.Stdout())
+	return err
 }
 
 // outputError prints an error e to stderr.
