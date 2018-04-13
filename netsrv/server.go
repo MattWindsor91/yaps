@@ -104,7 +104,7 @@ func (s *Server) newClient(c net.Conn) error {
 	s.l.Println("new connection:", c.RemoteAddr().String())
 
 	conClient, err := s.rootClient.Copy()
-	if err == nil {
+	if err != nil {
 		c.Close()
 		return err
 	}
@@ -172,7 +172,10 @@ func (s *Server) mainLoop() {
 			s.l.Println("error accepting connections:", err)
 			return
 		case conn := <-s.accConn:
-			s.newClient(conn)
+			cname := conn.RemoteAddr().String()
+			if err := s.newClient(conn); err != nil {
+				s.l.Printf("error registering connection %s: %s\n", cname, err.Error())
+			}
 		case <-s.rootClient.Done:
 			s.l.Println("received controller shutdown")
 			return
