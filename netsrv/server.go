@@ -257,6 +257,8 @@ func (s *Server) mainLoop() {
 			}
 		case c := <-s.clientHangUp:
 			s.hangUpClient(c)
+		case <-s.rootClient.Rx:
+			// Drain any messages sent to the root client.
 		case <-s.rootClient.Done:
 			s.l.Println("received controller shutdown")
 			return

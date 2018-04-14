@@ -135,7 +135,7 @@ func (c *Controller) handleRequest(rq Request) {
 		replyCb := func(rbody interface{}) {
 			c.reply(o, rbody)
 		}
-		err = c.state.HandleRequest(c.broadcast, replyCb, body)
+		err = c.state.HandleRequest(replyCb, c.broadcast, body)
 	}
 
 	ack := AckResponse{err}

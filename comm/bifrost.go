@@ -256,7 +256,7 @@ func (b *Bifrost) handleResponsesUntilAck(c <-chan Response) bool {
 
 // handleResponse handles a controller response rs.
 func (b *Bifrost) handleResponse(rs Response) {
-	tag := rs.Origin.Tag
+	tag := bifrostTagOf(rs)
 
 	var err error
 
@@ -272,6 +272,18 @@ func (b *Bifrost) handleResponse(rs Response) {
 	if err != nil {
 		b.resMsgTx <- *errorToMessage(tag, err)
 	}
+}
+
+// bifrostTagOf works out the Bifrost message tag of response rs.
+// This is either the broadcast tag, if rs is a broadcast, or the given tag.
+func bifrostTagOf(rs Response) string {
+	if rs.Broadcast {
+		return bifrost.TagBcast
+	}
+	if rs.Origin == nil {
+		panic("non-broadcast response with nil origin")
+	}
+	return rs.Origin.Tag
 }
 
 // handleAck handles converting an AckResponse r into messages for tag t.

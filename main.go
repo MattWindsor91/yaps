@@ -56,9 +56,14 @@ func main() {
 		return
 	}
 
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		console.RunRx()
+		wg.Done()
+	}()
+	go func() {
+		for range rootClient.Rx {
+		}
 		wg.Done()
 	}()
 
