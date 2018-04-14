@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
@@ -58,6 +59,9 @@ type Server struct {
 
 // client holds the server-side state of a baps3d TCP client.
 type client struct {
+	// l holds the logger for this client.
+	l *log.Logger
+
 	// conn holds the client socket.
 	conn net.Conn
 
@@ -70,6 +74,9 @@ type client struct {
 
 	// conBifrost is the Bifrost adapter for conClient.
 	conBifrost *comm.BifrostClient
+
+	// srvHangup is the channel to send the client to when it hangs up.
+	//
 }
 
 // Close closes the given client.
@@ -108,18 +115,87 @@ func (s *Server) newClient(c net.Conn) error {
 		_ = c.Close()
 		return err
 	}
-	_, conBifrostClient := comm.NewBifrost(conClient, s.rootBifrost)
+	conBifrost, conBifrostClient := comm.NewBifrost(conClient, s.rootBifrost)
 	cli := client{
 		conn:       c,
 		conClient:  conClient,
 		conBifrost: conBifrostClient,
+		l:          s.l,
 	}
 
 	s.clients[cli] = struct{}{}
 
-	// TODO(@MattWindsor91): spin up goroutines
+	s.wg.Add(3)
+	go func() {
+		cli.RunTx()
+		// Only hang up if the server is still around.
+		// Otherwise, we'll just hang here waiting for the server to answer,
+		// while the server hangs up the client anyway.
+		select {
+		case s.clientHangUp <- &cli:
+		case <-s.done:
+		}
+		s.wg.Done()
+	}()
+	go func() {
+		cli.RunRx()
+		s.wg.Done()
+	}()
+	go func() {
+		conBifrost.Run()
+		s.wg.Done()
+	}()
 
 	return nil
+}
+
+// RunRx runs the client's message receiver loop.
+// This writes messages to the socket.
+func (c *client) RunRx() {
+	// We don't have to check c.bclient.Done here:
+	// client always drops both Rx and Done when shutting down.
+	for m := range c.conBifrost.Rx {
+		mbytes, err := m.Pack()
+		if err != nil {
+			c.outputError(err)
+			continue
+		}
+
+		if _, err := c.conn.Write(mbytes); err != nil {
+			c.outputError(err)
+			break
+		}
+	}
+}
+
+// outputError logs a connection error for client c.
+func (c *client) outputError(e error) {
+	c.l.Println("connection error:", e.Error())
+}
+
+// RunTx runs the client's message transmitter loop.
+// This reads from stdin.
+func (c *client) RunTx() {
+	r := bifrost.NewReaderTokeniser(c.conn)
+
+	for {
+		line, terr := r.ReadLine()
+		if terr != nil {
+			c.outputError(terr)
+			break
+		}
+
+		msg, merr := bifrost.LineToMessage(line)
+		if merr != nil {
+			c.outputError(merr)
+			break
+		}
+
+		if !c.conBifrost.Send(*msg) {
+			c.l.Println("client died while sending message")
+			break
+		}
+	}
 }
 
 // hangUpAllClients gracefully closes all connected clients on s.
@@ -179,6 +255,8 @@ func (s *Server) mainLoop() {
 			if err := s.newClient(conn); err != nil {
 				s.l.Printf("error registering connection %s: %s\n", cname, err.Error())
 			}
+		case c := <-s.clientHangUp:
+			s.hangUpClient(c)
 		case <-s.rootClient.Done:
 			s.l.Println("received controller shutdown")
 			return
