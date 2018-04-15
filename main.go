@@ -62,22 +62,17 @@ func main() {
 		wg.Done()
 	}()
 	go func() {
-		for range rootClient.Rx {
+		console.RunTx()
+		if err = console.Close(); err != nil {
+			fmt.Println(err)
 		}
+		consoleClient.Shutdown()
 		wg.Done()
 	}()
 
-	console.RunTx()
-
-	if err = console.Close(); err != nil {
-		fmt.Println(err)
+	for range rootClient.Rx {
 	}
 
-	fmt.Println("shutting down")
-	rootClient.Shutdown()
-	fmt.Println("got shutdown request ack")
-
 	wg.Wait()
-
 	rootLog.Println("It's now safe to turn off your baps3d.")
 }
