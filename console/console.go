@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/comm"
@@ -25,6 +26,8 @@ const (
 
 // Console provides a readline-style console for sending Bifrost messages to a controller.
 type Console struct {
+	client  *comm.Client
+	bf      *comm.Bifrost
 	bclient *comm.BifrostClient
 	tok     *bifrost.Tokeniser
 	rl      *readline.Instance
@@ -33,14 +36,18 @@ type Console struct {
 
 // New creates a new Console.
 // This can fail if the underlying console library fails.
-func New(bclient *comm.BifrostClient) (*Console, error) {
+func New(client *comm.Client, bparser comm.BifrostParser) (*Console, error) {
 	rl, err := readline.New(promptNormal)
 	if err != nil {
 		return nil, err
 	}
 
+	bf, bfc := comm.NewBifrost(client, bparser)
+
 	return &Console{
-		bclient: bclient,
+		client:  client,
+		bf:      bf,
+		bclient: bfc,
 		tok:     bifrost.NewTokeniser(),
 		rl:      rl,
 	}, nil
@@ -51,9 +58,35 @@ func (c *Console) Close() error {
 	return c.rl.Close()
 }
 
-// RunRx runs the Console's message receiver loop.
+// Run spins up the Console goroutines, and waits for them to terminate.
+// It returns any errors returned while closing the Console.
+func (c *Console) Run() error {
+	var wg sync.WaitGroup
+	var err error
+
+	wg.Add(3)
+	go func() {
+		c.bf.Run()
+		wg.Done()
+	}()
+	go func() {
+		c.runTx()
+		c.client.Shutdown()
+		wg.Done()
+	}()
+	go func() {
+		c.runRx()
+		err = c.Close()
+		wg.Done()
+	}()
+
+	wg.Wait()
+	return err
+}
+
+// runRx runs the Console's message receiver loop.
 // This prints messages to stdout.
-func (c *Console) RunRx() {
+func (c *Console) runRx() {
 	// We don't have to check c.bclient.Done here:
 	// client always drops both Rx and Done when shutting down.
 	for m := range c.bclient.Rx {
@@ -69,9 +102,9 @@ func (c *Console) RunRx() {
 	}
 }
 
-// RunTx runs the Console's message transmitter loop.
+// runTx runs the Console's message transmitter loop.
 // This reads from stdin.
-func (c *Console) RunTx() {
+func (c *Console) runTx() {
 	c.txrun = true
 	for c.txrun {
 		string, terr := c.rl.Readline()

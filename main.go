@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -43,28 +42,16 @@ func main() {
 		rootLog.Println("couldn't create console client:", err)
 		return
 	}
-	consoleBf, consoleBfClient := comm.NewBifrost(consoleClient, lst)
-	wg.Add(1)
-	go func() {
-		consoleBf.Run()
-		wg.Done()
-	}()
-
-	console, err := console.New(consoleBfClient)
+	console, err := console.New(consoleClient, lst)
 	if err != nil {
 		rootLog.Println("couldn't bring up console:", err)
 		return
 	}
 
-	wg.Add(2)
+	wg.Add(1)
 	go func() {
-		console.RunRx()
-		wg.Done()
-	}()
-	go func() {
-		console.RunTx()
-		if err = console.Close(); err != nil {
-			fmt.Println(err)
+		if err := console.Run(); err != nil {
+			rootLog.Println("error closing console:", err)
 		}
 		consoleClient.Shutdown()
 		wg.Done()
@@ -72,7 +59,6 @@ func main() {
 
 	for range rootClient.Rx {
 	}
-
 	wg.Wait()
 	rootLog.Println("It's now safe to turn off your baps3d.")
 }
