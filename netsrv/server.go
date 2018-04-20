@@ -5,7 +5,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
@@ -55,34 +54,6 @@ type Server struct {
 	// wg is a WaitGroup that tracks all inner server goroutines.
 	// The server main loop won't terminate until the WaitGroup hits zero.
 	wg sync.WaitGroup
-}
-
-// client holds the server-side state of a baps3d TCP client.
-type client struct {
-	// l holds the logger for this client.
-	l *log.Logger
-
-	// conn holds the client socket.
-	conn net.Conn
-
-	// buf holds the client buffer.
-	buf [4096]byte
-
-	// conClient is the client's Client for the Controller for this
-	// server.
-	conClient *comm.Client
-
-	// conBifrost is the Bifrost adapter for conClient.
-	conBifrost *comm.BifrostClient
-
-	// srvHangup is the channel to send the client to when it hangs up.
-	//
-}
-
-// Close closes the given client.
-func (c *client) Close() error {
-	// TODO(@MattWindsor91): disconnect client and bifrost
-	return c.conn.Close()
 }
 
 // New creates a new network server for a baps3d instance.
@@ -147,55 +118,6 @@ func (s *Server) newClient(c net.Conn) error {
 	}()
 
 	return nil
-}
-
-// RunRx runs the client's message receiver loop.
-// This writes messages to the socket.
-func (c *client) RunRx() {
-	// We don't have to check c.bclient.Done here:
-	// client always drops both Rx and Done when shutting down.
-	for m := range c.conBifrost.Rx {
-		mbytes, err := m.Pack()
-		if err != nil {
-			c.outputError(err)
-			continue
-		}
-
-		if _, err := c.conn.Write(mbytes); err != nil {
-			c.outputError(err)
-			break
-		}
-	}
-}
-
-// outputError logs a connection error for client c.
-func (c *client) outputError(e error) {
-	c.l.Println("connection error:", e.Error())
-}
-
-// RunTx runs the client's message transmitter loop.
-// This reads from stdin.
-func (c *client) RunTx() {
-	r := bifrost.NewReaderTokeniser(c.conn)
-
-	for {
-		line, terr := r.ReadLine()
-		if terr != nil {
-			c.outputError(terr)
-			break
-		}
-
-		msg, merr := bifrost.LineToMessage(line)
-		if merr != nil {
-			c.outputError(merr)
-			break
-		}
-
-		if !c.conBifrost.Send(*msg) {
-			c.l.Println("client died while sending message")
-			break
-		}
-	}
 }
 
 // hangUpAllClients gracefully closes all connected clients on s.
