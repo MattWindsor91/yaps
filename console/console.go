@@ -164,8 +164,8 @@ func (c *Console) handleLine(line []string) (bool, error) {
 	}
 
 	// Assume that err will be nil if !issc.
-	if issc, scerr := c.handleSpecialCommand(line); issc {
-		return true, scerr
+	if issc, clientok, scerr := c.handleSpecialCommand(line); issc {
+		return clientok, scerr
 	}
 
 	// Default behaviour: send as Bifrost message, but with unique tag
@@ -181,7 +181,7 @@ func (c *Console) handleLine(line []string) (bool, error) {
 }
 
 // gentag generates a new, (hopefully) unique tag.
-// It may return an error if the
+// It may return an error if the generator fails.
 func gentag() (string, error) {
 	id, err := uuid.NewV1()
 	if err != nil {
@@ -200,26 +200,27 @@ func (c *Console) txLine(line []string) (bool, error) {
 }
 
 // handleSpecialCommand tries to interpret line as a special command.
-// If line is a special command, it processes line and returns true, and any
+// If line is a special command, it processes line and returns true, a
+// Boolean reporting whether the client is still taking messages, and any
 // errors that occur during processing.
-// If not, it returns false/nil, and the line should be processed as a raw
+// If not, it returns false/false/nil, and the line should be processed as a raw
 // message.
 // line must be non-empty.
-func (c *Console) handleSpecialCommand(line []string) (bool, error) {
+func (c *Console) handleSpecialCommand(line []string) (bool, bool, error) {
 	scword, issc := parseSpecialCommand(line[0])
 	if !issc {
-		return false, nil
+		return false, false, nil
 	}
 
 	switch scword {
 	case "quit":
-		return true, c.handleQuit(line)
+		return true, false, c.handleQuit(line)
 	case "tag":
 		// Send message with specific tag
-		c.txLine(line[1:])
-		return true, nil
+		clientok, err := c.txLine(line[1:])
+		return true, clientok, err
 	default:
-		return true, fmt.Errorf("unknown sc")
+		return true, true, fmt.Errorf("unknown sc")
 	}
 }
 

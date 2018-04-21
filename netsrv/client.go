@@ -16,9 +16,6 @@ type client struct {
 	// conn holds the client socket.
 	conn net.Conn
 
-	// buf holds the client buffer.
-	buf [4096]byte
-
 	// conClient is the client's Client for the Controller for this
 	// server.
 	conClient *comm.Client
