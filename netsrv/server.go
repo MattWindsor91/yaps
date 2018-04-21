@@ -10,8 +10,8 @@ import (
 
 // Server holds the internal state of a baps3d TCP server.
 type Server struct {
-	// l is the Server's logger.
-	l *log.Logger
+	// log is the Server's logger.
+	log *log.Logger
 
 	// host is the Server's host:port string.
 	host string
@@ -59,7 +59,7 @@ type Server struct {
 // New creates a new network server for a baps3d instance.
 func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) *Server {
 	return &Server{
-		l:            l,
+		log:          l,
 		host:         host,
 		rootClient:   rc,
 		rootBifrost:  rb,
@@ -73,13 +73,13 @@ func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) *Se
 }
 
 func (s *Server) shutdownController() {
-	s.l.Println("shutting down")
+	s.log.Println("shutting down")
 	s.rootClient.Shutdown()
 }
 
 // newClient sets up the server s to handle incoming connection c.
 func (s *Server) newClient(c net.Conn) error {
-	s.l.Println("new connection:", c.RemoteAddr().String())
+	s.log.Println("new connection:", c.RemoteAddr().String())
 
 	conClient, err := s.rootClient.Copy()
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *Server) newClient(c net.Conn) error {
 		conn:       c,
 		conClient:  conClient,
 		conBifrost: conBifrostClient,
-		l:          s.l,
+		log:        s.log,
 	}
 
 	s.clients[cli] = struct{}{}
@@ -130,9 +130,9 @@ func (s *Server) hangUpAllClients() {
 // hangUpClient closes the client pointed to by c.
 func (s *Server) hangUpClient(c *client) {
 	cname := c.conn.RemoteAddr().String()
-	s.l.Println("hanging up:", cname)
+	s.log.Println("hanging up:", cname)
 	if err := c.Close(); err != nil {
-		s.l.Printf("couldn't gracefully close %s: %s\n", cname, err.Error())
+		s.log.Printf("couldn't gracefully close %s: %s\n", cname, err.Error())
 	}
 	delete(s.clients, *c)
 }
@@ -144,11 +144,11 @@ func (s *Server) Run() {
 
 	ln, err := net.Listen("tcp", s.host)
 	if err != nil {
-		s.l.Println("couldn't open server:", err)
+		s.log.Println("couldn't open server:", err)
 		return
 	}
 
-	s.l.Println("now listening on", s.host)
+	s.log.Println("now listening on", s.host)
 	s.wg.Add(1)
 	go func() {
 		s.acceptClients(ln)
@@ -160,9 +160,9 @@ func (s *Server) Run() {
 	close(s.done)
 	s.hangUpAllClients()
 	if err := ln.Close(); err != nil {
-		s.l.Println("error closing listener:", err)
+		s.log.Println("error closing listener:", err)
 	}
-	s.l.Println("closed listener")
+	s.log.Println("closed listener")
 }
 
 // mainLoop is the server's main connection handling loop.
@@ -170,19 +170,19 @@ func (s *Server) mainLoop() {
 	for {
 		select {
 		case err := <-s.accErr:
-			s.l.Println("error accepting connections:", err)
+			s.log.Println("error accepting connections:", err)
 			return
 		case conn := <-s.accConn:
 			cname := conn.RemoteAddr().String()
 			if err := s.newClient(conn); err != nil {
-				s.l.Printf("error registering connection %s: %s\n", cname, err.Error())
+				s.log.Printf("error registering connection %s: %s\n", cname, err.Error())
 			}
 		case c := <-s.clientHangUp:
 			s.hangUpClient(c)
 		case <-s.rootClient.Rx:
 			// Drain any messages sent to the root client.
 		case <-s.rootClient.Done:
-			s.l.Println("received controller shutdown")
+			s.log.Println("received controller shutdown")
 			return
 		}
 	}

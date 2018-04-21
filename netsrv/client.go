@@ -10,8 +10,8 @@ import (
 
 // client holds the server-side state of a baps3d TCP client.
 type client struct {
-	// l holds the logger for this client.
-	l *log.Logger
+	// log holds the logger for this client.
+	log *log.Logger
 
 	// conn holds the client socket.
 	conn net.Conn
@@ -54,7 +54,7 @@ func (c *client) RunRx() {
 
 // outputError logs a connection error for client c.
 func (c *client) outputError(e error) {
-	c.l.Println("connection error:", e.Error())
+	c.log.Println("connection error:", e.Error())
 }
 
 // RunTx runs the client's message transmitter loop.
@@ -76,7 +76,7 @@ func (c *client) RunTx() {
 		}
 
 		if !c.conBifrost.Send(*msg) {
-			c.l.Println("client died while sending message")
+			c.log.Println("client died while sending message")
 			break
 		}
 	}
