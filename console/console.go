@@ -163,12 +163,20 @@ func (c *Console) handleLine(line []string) (bool, error) {
 		return true, nil
 	}
 
-	// Assume that err will be nil if !issc.
-	if issc, clientok, scerr := c.handleSpecialCommand(line); issc {
-		return clientok, scerr
+	if scword, issc := parseSpecialCommand(line[0]); issc {
+		return c.handleSpecialCommand(scword, line[1:])
 	}
 
-	// Default behaviour: send as Bifrost message, but with unique tag
+	return c.handleBifrostLine(line)
+}
+
+// handleBifrostLine interprets a line (word array) as a tagless Bifrost
+// message.
+// The line should have been tokenised using Bifrost tokenisation rules.
+//
+// Returns whether the upstream client is still taking messages, and any errors
+// arising from processing the line.
+func (c *Console) handleBifrostLine(line []string) (bool, error) {
 	tag, err := gentag()
 	if err != nil {
 		return true, err
@@ -199,34 +207,24 @@ func (c *Console) txLine(line []string) (bool, error) {
 	return c.bclient.Send(*msg), nil
 }
 
-// handleSpecialCommand tries to interpret line as a special command.
-// If line is a special command, it processes line and returns true, a
-// Boolean reporting whether the client is still taking messages, and any
-// errors that occur during processing.
-// If not, it returns false/false/nil, and the line should be processed as a raw
-// message.
-// line must be non-empty.
-func (c *Console) handleSpecialCommand(line []string) (bool, bool, error) {
-	scword, issc := parseSpecialCommand(line[0])
-	if !issc {
-		return false, false, nil
-	}
-
+// handleSpecialCommand handles special command word scword with arguments args.
+// It returns a Boolean reporting whether the client is still taking messages,
+// and any errors that occur during processing.
+func (c *Console) handleSpecialCommand(scword string, args []string) (bool, error) {
 	switch scword {
 	case "quit":
-		return true, false, c.handleQuit(line)
+		return false, c.handleQuit(args)
 	case "tag":
 		// Send message with specific tag
-		clientok, err := c.txLine(line[1:])
-		return true, clientok, err
+		return c.txLine(args)
 	default:
-		return true, true, fmt.Errorf("unknown sc")
+		return true, fmt.Errorf("unknown sc")
 	}
 }
 
 // handleQuit handles a quit message.
-func (c *Console) handleQuit(line []string) error {
-	if 1 != len(line) {
+func (c *Console) handleQuit(args []string) error {
+	if 0 != len(args) {
 		return fmt.Errorf("bad arity")
 	}
 
