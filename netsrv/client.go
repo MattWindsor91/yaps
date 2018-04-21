@@ -1,20 +1,23 @@
 package netsrv
 
 import (
+	"io"
 	"log"
-	"net"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
-// client holds the server-side state of a baps3d TCP client.
-type client struct {
+// Client holds the server-side state of a baps3d Bifrost client.
+type Client struct {
+	// name holds a descriptive name for the Client.
+	name string
+
 	// log holds the logger for this client.
 	log *log.Logger
 
-	// conn holds the client socket.
-	conn net.Conn
+	// conn holds the internal client.
+	conn io.ReadWriteCloser
 
 	// conClient is the client's Client for the Controller for this
 	// server.
@@ -25,14 +28,14 @@ type client struct {
 }
 
 // Close closes the given client.
-func (c *client) Close() error {
+func (c *Client) Close() error {
 	// TODO(@MattWindsor91): disconnect client and bifrost
 	return c.conn.Close()
 }
 
 // RunRx runs the client's message receiver loop.
 // This writes messages to the socket.
-func (c *client) RunRx() {
+func (c *Client) RunRx() {
 	// We don't have to check c.bclient.Done here:
 	// client always drops both Rx and Done when shutting down.
 	for m := range c.conBifrost.Rx {
@@ -50,13 +53,13 @@ func (c *client) RunRx() {
 }
 
 // outputError logs a connection error for client c.
-func (c *client) outputError(e error) {
-	c.log.Println("connection error:", e.Error())
+func (c *Client) outputError(e error) {
+	c.log.Printf("connection error on %s: %s\n", c.name, e.Error())
 }
 
 // RunTx runs the client's message transmitter loop.
 // This reads from stdin.
-func (c *client) RunTx() {
+func (c *Client) RunTx() {
 	r := bifrost.NewReaderTokeniser(c.conn)
 
 	for {
@@ -73,7 +76,7 @@ func (c *client) RunTx() {
 		}
 
 		if !c.conBifrost.Send(*msg) {
-			c.log.Println("client died while sending message")
+			c.log.Printf("client died while sending message on %s", c.name)
 			break
 		}
 	}

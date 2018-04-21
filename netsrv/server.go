@@ -25,7 +25,7 @@ type Server struct {
 	rootBifrost comm.BifrostParser
 
 	// clients is a map containing all connected clients.
-	clients map[client]struct{}
+	clients map[Client]struct{}
 
 	// accConn is a channel used by the acceptor goroutine to send new
 	// connections to the main goroutine.
@@ -39,7 +39,7 @@ type Server struct {
 	// clientHangUp is a channel used by client goroutines to send
 	// disconnections to the main goroutine.
 	// It sends a pointer to the client to disconnect.
-	clientHangUp chan *client
+	clientHangUp chan *Client
 
 	// clientErr is a channel used by client goroutines to send
 	// errors to the main goroutine.
@@ -65,10 +65,10 @@ func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) *Se
 		rootBifrost:  rb,
 		accConn:      make(chan net.Conn),
 		accErr:       make(chan error),
-		clientHangUp: make(chan *client),
+		clientHangUp: make(chan *Client),
 		clientErr:    make(chan error),
 		done:         make(chan struct{}),
-		clients:      make(map[client]struct{}),
+		clients:      make(map[Client]struct{}),
 	}
 }
 
@@ -77,9 +77,10 @@ func (s *Server) shutdownController() {
 	s.rootClient.Shutdown()
 }
 
-// newClient sets up the server s to handle incoming connection c.
-func (s *Server) newClient(c net.Conn) error {
-	s.log.Println("new connection:", c.RemoteAddr().String())
+// newConnection sets up the server s to handle incoming connection c.
+func (s *Server) newConnection(c net.Conn) error {
+	cname := c.RemoteAddr().String()
+	s.log.Println("new connection:", cname)
 
 	conClient, err := s.rootClient.Copy()
 	if err != nil {
@@ -87,7 +88,8 @@ func (s *Server) newClient(c net.Conn) error {
 		return err
 	}
 	conBifrost, conBifrostClient := comm.NewBifrost(conClient, s.rootBifrost)
-	cli := client{
+	cli := Client{
+		name:       cname,
 		conn:       c,
 		conClient:  conClient,
 		conBifrost: conBifrostClient,
@@ -128,11 +130,10 @@ func (s *Server) hangUpAllClients() {
 }
 
 // hangUpClient closes the client pointed to by c.
-func (s *Server) hangUpClient(c *client) {
-	cname := c.conn.RemoteAddr().String()
-	s.log.Println("hanging up:", cname)
+func (s *Server) hangUpClient(c *Client) {
+	s.log.Println("hanging up:", c.name)
 	if err := c.Close(); err != nil {
-		s.log.Printf("couldn't gracefully close %s: %s\n", cname, err.Error())
+		s.log.Printf("couldn't gracefully close %s: %s\n", c.name, err.Error())
 	}
 	delete(s.clients, *c)
 }
@@ -174,7 +175,7 @@ func (s *Server) mainLoop() {
 			return
 		case conn := <-s.accConn:
 			cname := conn.RemoteAddr().String()
-			if err := s.newClient(conn); err != nil {
+			if err := s.newConnection(conn); err != nil {
 				s.log.Printf("error registering connection %s: %s\n", cname, err.Error())
 			}
 		case c := <-s.clientHangUp:
