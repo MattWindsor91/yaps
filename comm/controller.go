@@ -20,6 +20,10 @@ type Controller struct {
 
 	// cselects is the list of cases, one per client, used in the connector select loop.
 	// It gets rebuilt every time a client connects or disconnects.
+	//
+	// We use a set of cases rather than a single multiplexed request channel
+	// to let clients notify the Controller of disconnection by closing its own
+	// channel.
 	cselects []reflect.SelectCase
 
 	// running is the internal is-running flag.
