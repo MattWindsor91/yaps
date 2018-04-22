@@ -3,6 +3,7 @@ package netsrv
 import (
 	"io"
 	"log"
+	"sync"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/comm"
@@ -33,9 +34,41 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// RunRx runs the client's message receiver loop.
+// Run spins up the client's receiver and transmitter loops.
+// It takes the client's Bifrost adapter,
+// and the server's client hangup and done channels.
+func (c *Client) Run(bifrost *comm.Bifrost, hangUp chan<- *Client, done <-chan struct{}) {
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+		c.RunTx()
+		// Only hang up if the server is still around.
+		// Otherwise, we'll just hang here waiting for the server to answer,
+		// while the server hangs up the client anyway.
+		select {
+		case hangUp <- c:
+		case <-done:
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		c.runRx()
+		wg.Done()
+	}()
+
+	go func() {
+		bifrost.Run()
+		wg.Done()
+	}()
+
+	wg.Wait()
+}
+
+// runRx runs the client's message receiver loop.
 // This writes messages to the socket.
-func (c *Client) RunRx() {
+func (c *Client) runRx() {
 	// We don't have to check c.bclient.Done here:
 	// client always drops both Rx and Done when shutting down.
 	for m := range c.conBifrost.Rx {
@@ -57,7 +90,7 @@ func (c *Client) outputError(e error) {
 	c.log.Printf("connection error on %s: %s\n", c.name, e.Error())
 }
 
-// RunTx runs the client's message transmitter loop.
+// runTx runs the client's message transmitter loop.
 // This reads from stdin.
 func (c *Client) RunTx() {
 	r := bifrost.NewReaderTokeniser(c.conn)

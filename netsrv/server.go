@@ -98,24 +98,9 @@ func (s *Server) newConnection(c net.Conn) error {
 
 	s.clients[cli] = struct{}{}
 
-	s.wg.Add(3)
+	s.wg.Add(1)
 	go func() {
-		cli.RunTx()
-		// Only hang up if the server is still around.
-		// Otherwise, we'll just hang here waiting for the server to answer,
-		// while the server hangs up the client anyway.
-		select {
-		case s.clientHangUp <- &cli:
-		case <-s.done:
-		}
-		s.wg.Done()
-	}()
-	go func() {
-		cli.RunRx()
-		s.wg.Done()
-	}()
-	go func() {
-		conBifrost.Run()
+		cli.Run(conBifrost, s.clientHangUp, s.done)
 		s.wg.Done()
 	}()
 
