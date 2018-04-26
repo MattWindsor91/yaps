@@ -3,9 +3,7 @@ package comm
 // This file defines Client, a struct of channels representing a connection to a
 // Controller, and related internal types.
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // Client is the type of external Controller client handles.
 type Client struct {
@@ -106,20 +104,54 @@ func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
 		return nil, nil, fmt.Errorf("controller shut down while getting a Bifrost")
 	}
 	var (
-		bf  *Bifrost
-		bfc *BifrostClient
+		bf       *Bifrost
+		bfc      *BifrostClient
+		innerErr error
 	)
-	for {
-		// TODO(@MattWindsor91): be more robust if these don't appear
-		// in order
-		r := <-reply
-		switch b := r.Body.(type) {
-		case bifrostParserResponse:
-			bf, bfc = NewBifrost(c, b)
-		case AckResponse:
-			return bf, bfc, nil
+
+	bfset := false
+
+	cb := func(rb interface{}) {
+		if innerErr != nil {
+			return
 		}
+
+		b, ok := rb.(bifrostParserResponse)
+		if !ok {
+			innerErr = fmt.Errorf("got an unexpected response")
+		}
+		if bfset {
+			innerErr = fmt.Errorf("got a duplicate parser response")
+		}
+
+		bf, bfc = NewBifrost(c, b)
 	}
+	if aerr := ProcessRepliesUntilAck(reply, cb); aerr != nil {
+		return nil, nil, aerr
+	}
+	if innerErr != nil {
+		return nil, nil, innerErr
+	}
+	if !bfset {
+		return nil, nil, fmt.Errorf("didn't get a parser response")
+	}
+
+	return bf, bfc, nil
+}
+
+// ProcessRepliesUntilAck feeds response bodies from the channel reply into cb
+// until an AckResponse is returned or the channel closes.
+// It returns any error coming from the AckResponse, or an error if the channel
+// closed before one arrived.
+func ProcessRepliesUntilAck(reply <-chan Response, cb func(interface{})) error {
+	for r := range reply {
+		if ack, isAck := r.Body.(AckResponse); isAck {
+			return ack.Err
+		}
+
+		cb(r.Body)
+	}
+	return fmt.Errorf("reply channel closed before ack received")
 }
 
 // coclient is the type of internal client handles.

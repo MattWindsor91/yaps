@@ -4,8 +4,15 @@ package comm
 // The baps3d state must satisfy the 'Controllable' interface.
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
+)
+
+var (
+	// ErrControllerCannotSpeakBifrost is the error sent when a Client requests
+	// a Bifrost adapter for a Controller, but its Controllable state doesn't
+	// implement BifrostParser.
+	ErrControllerCannotSpeakBifrost error = errors.New("this controller's state can't parse Bifrost messages")
 )
 
 // Controller wraps a baps3d service in a channel-based interface.
@@ -188,7 +195,7 @@ func (c *Controller) handleShutdownRequest(o RequestOrigin, b shutdownRequest) e
 func (c *Controller) handleBifrostParserRequest(o RequestOrigin, b bifrostParserRequest) error {
 	bp, ok := c.state.(BifrostParser)
 	if !ok {
-		return fmt.Errorf("controller state can't interpret Bifrost messages")
+		return ErrControllerCannotSpeakBifrost
 	}
 
 	c.reply(o, bifrostParserResponse(bp))
