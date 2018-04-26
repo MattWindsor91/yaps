@@ -77,7 +77,7 @@ func (m *Message) Pack() (packed []byte, err error) {
 			return
 		}
 	}
-	if _, err = output.WriteString("\n"); err != nil {
+	if _, err = output.WriteRune('\n'); err != nil {
 		return
 	}
 
@@ -103,37 +103,42 @@ func (m *Message) Args() []string {
 // Arg returns the index-th argument of the given Message.
 // The first argument is argument 0.
 // If the argument does not exist, an error is returned via err.
-func (m *Message) Arg(index int) (arg string, err error) {
+func (m *Message) Arg(index int) (string, error) {
 	if index < 0 {
-		err = fmt.Errorf("got negative index %d", index)
-	} else if len(m.args) <= index {
-		err = fmt.Errorf("wanted argument %d, only %d arguments", index, len(m.args))
-	} else {
-		arg = m.args[index]
+		return "", fmt.Errorf("got negative index %d", index)
 	}
-	return
+
+	if len(m.args) <= index {
+		return "", fmt.Errorf("wanted argument %d, only %d arguments", index, len(m.args))
+	}
+
+	return m.args[index], nil
 }
 
 // String returns a string representation of a Message.
 // This is not the wire representation: use Pack instead.
-func (m *Message) String() (outstr string) {
-	outstr = m.word
+func (m *Message) String() string {
+	var out strings.Builder
+	out.WriteString(m.word)
+
 	for _, s := range m.args {
-		outstr += " " + s
+		out.WriteRune(' ')
+		out.WriteString(s)
 	}
-	return
+
+	return out.String()
 }
 
 // LineToMessage constructs a Message struct from a line of word-strings.
-func LineToMessage(line []string) (msg *Message, err error) {
+func LineToMessage(line []string) (*Message, error) {
 	if len(line) < 2 {
-		err = fmt.Errorf("insufficient words")
-	} else {
-		msg = NewMessage(line[0], line[1])
-		for _, arg := range line[2:] {
-			msg.AddArg(arg)
-		}
+		return nil, fmt.Errorf("insufficient words")
 	}
 
-	return
+	msg := NewMessage(line[0], line[1])
+	for _, arg := range line[2:] {
+		msg.AddArg(arg)
+	}
+
+	return msg, nil
 }
