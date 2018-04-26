@@ -62,11 +62,7 @@ func escapeArgument(input string) string {
 // These bytes can be sent down a TCP connection to a Bifrost server, providing
 // they are terminated using a line-feed character.
 func (m *Message) Pack() (packed []byte, err error) {
-	output := new(bytes.Buffer)
-
-	if _, err = output.WriteString(m.tag + " " + m.word); err != nil {
-		return
-	}
+	output := bytes.NewBufferString(m.tag + " " + m.word)
 
 	for _, a := range m.args {
 		// Escape arg if needed
