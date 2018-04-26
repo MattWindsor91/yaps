@@ -20,10 +20,6 @@ type Server struct {
 	// use by incoming connections.
 	rootClient *comm.Client
 
-	// rootBifrost is a Bifrost parser the Server can use for
-	// incoming connections.
-	rootBifrost comm.BifrostParser
-
 	// clients is a map containing all connected clients.
 	clients map[Client]struct{}
 
@@ -57,12 +53,11 @@ type Server struct {
 }
 
 // New creates a new network server for a baps3d instance.
-func New(l *log.Logger, host string, rc *comm.Client, rb comm.BifrostParser) *Server {
+func New(l *log.Logger, host string, rc *comm.Client) *Server {
 	return &Server{
 		log:          l,
 		host:         host,
 		rootClient:   rc,
-		rootBifrost:  rb,
 		accConn:      make(chan net.Conn),
 		accErr:       make(chan error),
 		clientHangUp: make(chan *Client),
@@ -78,16 +73,21 @@ func (s *Server) shutdownController() {
 }
 
 // newConnection sets up the server s to handle incoming connection c.
+// It does not close c on error.
 func (s *Server) newConnection(c net.Conn) error {
 	cname := c.RemoteAddr().String()
 	s.log.Println("new connection:", cname)
 
 	conClient, err := s.rootClient.Copy()
 	if err != nil {
-		_ = c.Close()
 		return err
 	}
-	conBifrost, conBifrostClient := comm.NewBifrost(conClient, s.rootBifrost)
+
+	conBifrost, conBifrostClient, err := conClient.Bifrost()
+	if err != nil {
+		return err
+	}
+
 	cli := Client{
 		name:       cname,
 		conn:       c,
@@ -162,6 +162,7 @@ func (s *Server) mainLoop() {
 			cname := conn.RemoteAddr().String()
 			if err := s.newConnection(conn); err != nil {
 				s.log.Printf("error registering connection %s: %s\n", cname, err.Error())
+				conn.Close()
 			}
 		case c := <-s.clientHangUp:
 			s.hangUpClient(c)

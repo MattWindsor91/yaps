@@ -4,6 +4,7 @@ package comm
 // The baps3d state must satisfy the 'Controllable' interface.
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -135,6 +136,8 @@ func (c *Controller) handleRequest(rq Request) {
 		err = c.handleNewClientRequest(o, body)
 	case shutdownRequest:
 		err = c.handleShutdownRequest(o, body)
+	case bifrostParserRequest:
+		err = c.handleBifrostParserRequest(o, body)
 	default:
 		replyCb := func(rbody interface{}) {
 			c.reply(o, rbody)
@@ -178,6 +181,17 @@ func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
 func (c *Controller) handleShutdownRequest(o RequestOrigin, b shutdownRequest) error {
 	// We don't do the shutdown here, but instead when we go round the main loop.
 	c.running = false
+	return nil
+}
+
+// handleBifrostParserRequest handles a get-Bifrost-parser request with origin o and body b.
+func (c *Controller) handleBifrostParserRequest(o RequestOrigin, b bifrostParserRequest) error {
+	bp, ok := c.state.(BifrostParser)
+	if !ok {
+		return fmt.Errorf("controller state can't interpret Bifrost messages")
+	}
+
+	c.reply(o, bifrostParserResponse(bp))
 	return nil
 }
 

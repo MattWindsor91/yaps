@@ -35,14 +35,18 @@ type Console struct {
 }
 
 // New creates a new Console.
-// This can fail if the underlying console library fails.
-func New(client *comm.Client, bparser comm.BifrostParser) (*Console, error) {
+// This can fail if the underlying console library fails, or if the Client
+// doesn't support Bifrost.
+func New(client *comm.Client) (*Console, error) {
 	rl, err := readline.New(promptNormal)
 	if err != nil {
 		return nil, err
 	}
 
-	bf, bfc := comm.NewBifrost(client, bparser)
+	bf, bfc, err := client.Bifrost()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Console{
 		client:  client,

@@ -30,7 +30,7 @@ func main() {
 		rootLog.Println("couldn't create network client:", err)
 		return
 	}
-	netSrv := netsrv.New(netLog, "localhost:1357", netClient, lst)
+	netSrv := netsrv.New(netLog, "localhost:1357", netClient)
 	wg.Add(1)
 	go func() {
 		netSrv.Run()
@@ -42,7 +42,7 @@ func main() {
 		rootLog.Println("couldn't create console client:", err)
 		return
 	}
-	console, err := console.New(consoleClient, lst)
+	console, err := console.New(consoleClient)
 	if err != nil {
 		rootLog.Println("couldn't bring up console:", err)
 		return

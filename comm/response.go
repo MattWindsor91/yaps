@@ -40,3 +40,6 @@ type newClientResponse struct {
 	// Client is the new client connector.
 	Client *Client
 }
+
+// bifrostParserResponse responds to a request for a Bifrost parser.
+type bifrostParserResponse BifrostParser

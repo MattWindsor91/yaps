@@ -92,6 +92,36 @@ func (c *Client) Shutdown() {
 	}
 }
 
+// Bifrost tries to get a Bifrost adapter for Client c's Controller.
+// This fails if the Controller's state can't understand Bifrost messages.
+func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
+	reply := make(chan Response)
+	if !c.Send(Request{
+		Origin: RequestOrigin{
+			Tag:     "",
+			ReplyTx: reply,
+		},
+		Body: bifrostParserRequest{},
+	}) {
+		return nil, nil, fmt.Errorf("controller shut down while getting a Bifrost")
+	}
+	var (
+		bf  *Bifrost
+		bfc *BifrostClient
+	)
+	for {
+		// TODO(@MattWindsor91): be more robust if these don't appear
+		// in order
+		r := <-reply
+		switch b := r.Body.(type) {
+		case bifrostParserResponse:
+			bf, bfc = NewBifrost(c, b)
+		case AckResponse:
+			return bf, bfc, nil
+		}
+	}
+}
+
 // coclient is the type of internal client handles.
 type coclient struct {
 	// tx is the status update send channel.
