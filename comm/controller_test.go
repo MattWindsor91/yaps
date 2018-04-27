@@ -90,7 +90,7 @@ func TestClient_Bifrost_NoBifrostParser(t *testing.T) {
 }
 
 // TestClient_Bifrost_BifrostParser tests Client.Bifrost's behaviour when its
-// parent Controller's inner state doesn't understand Bifrost.
+// parent Controller's inner state understands Bifrost.
 func TestClient_Bifrost_BifrostParser(t *testing.T) {
 	f := func(cli *comm.Client, t *testing.T) {
 		bf, bfc, err := cli.Bifrost()
