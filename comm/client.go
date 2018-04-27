@@ -125,6 +125,7 @@ func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
 		}
 
 		bf, bfc = NewBifrost(c, b)
+		bfset = true
 	}
 	if aerr := ProcessRepliesUntilAck(reply, cb); aerr != nil {
 		return nil, nil, aerr
