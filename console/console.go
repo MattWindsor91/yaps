@@ -233,6 +233,7 @@ func (c *Console) handleQuit(args []string) error {
 	}
 
 	c.txrun = false
+	c.client.Shutdown()
 	return nil
 }
 

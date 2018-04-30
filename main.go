@@ -1,9 +1,13 @@
 package main
 
 import (
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"sync"
+
+	"github.com/BurntSushi/toml"
 
 	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
@@ -11,10 +15,73 @@ import (
 	"github.com/UniversityRadioYork/baps3d/netsrv"
 )
 
-func main() {
-	var wg sync.WaitGroup
+type config struct {
+	Console consoleConfig
+	Net     netConfig
+}
 
-	rootLog := log.New(os.Stderr, "[root] ", log.LstdFlags)
+type netConfig struct {
+	// Enabled toggles whether the net server is enabled.
+	Enabled bool
+	// Host is the TCP host:port string for the net server.
+	Host string
+	// Log toggles whether the net server logs to stderr.
+	Log bool
+}
+
+type consoleConfig struct {
+	// Enabled toggles whether the console is enabled.
+	Enabled bool
+}
+
+func makeLog(section string, enabled bool) *log.Logger {
+	var lw io.Writer
+	if enabled {
+		lw = os.Stderr
+	} else {
+		lw = ioutil.Discard
+	}
+
+	return log.New(lw, "["+section+"] ", log.LstdFlags)
+}
+
+func runNet(rootClient *comm.Client, ncfg netConfig) error {
+	netClient, err := rootClient.Copy()
+	if err != nil {
+		return err
+	}
+
+	netLog := makeLog("net", ncfg.Log)
+	netSrv := netsrv.New(netLog, ncfg.Host, netClient)
+	netSrv.Run()
+	return nil
+}
+
+func runConsole(rootClient *comm.Client, ccfg consoleConfig) error {
+	consoleClient, err := rootClient.Copy()
+	if err != nil {
+		return err
+	}
+
+	console, err := console.New(consoleClient)
+	if err != nil {
+		return err
+	}
+	return console.Run()
+}
+
+func main() {
+	rootLog := makeLog("root", true)
+
+	cfile := "baps3d.toml"
+	var conf config
+	_, err := toml.DecodeFile(cfile, &conf)
+	if err != nil {
+		rootLog.Printf("couldn't open config: %s\n", err.Error())
+		return
+	}
+
+	var wg sync.WaitGroup
 
 	lst := list.New()
 	lstCon, rootClient := comm.NewController(lst)
@@ -24,41 +91,29 @@ func main() {
 		wg.Done()
 	}()
 
-	netLog := log.New(os.Stderr, "[net] ", log.LstdFlags)
-	netClient, err := rootClient.Copy()
-	if err != nil {
-		rootLog.Println("couldn't create network client:", err)
-		return
-	}
-	netSrv := netsrv.New(netLog, "localhost:1357", netClient)
-	wg.Add(1)
-	go func() {
-		netSrv.Run()
-		wg.Done()
-	}()
-
-	consoleClient, err := rootClient.Copy()
-	if err != nil {
-		rootLog.Println("couldn't create console client:", err)
-		return
-	}
-	console, err := console.New(consoleClient)
-	if err != nil {
-		rootLog.Println("couldn't bring up console:", err)
-		return
+	if conf.Net.Enabled {
+		wg.Add(1)
+		go func() {
+			if err := runNet(rootClient, conf.Net); err != nil {
+				rootLog.Println("netsrv error:", err)
+			}
+			wg.Done()
+		}()
 	}
 
-	wg.Add(1)
-	go func() {
-		if err := console.Run(); err != nil {
-			rootLog.Println("error closing console:", err)
-		}
-		consoleClient.Shutdown()
-		wg.Done()
-	}()
+	if conf.Console.Enabled {
+		wg.Add(1)
+		go func() {
+			if err := runConsole(rootClient, conf.Console); err != nil {
+				rootLog.Println("console error:", err)
+			}
+			wg.Done()
+		}()
+	}
 
 	for range rootClient.Rx {
 	}
+
 	wg.Wait()
 	rootLog.Println("It's now safe to turn off your baps3d.")
 }
