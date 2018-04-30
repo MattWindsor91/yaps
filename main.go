@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -81,6 +82,9 @@ func main() {
 		return
 	}
 
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
 	var wg sync.WaitGroup
 
 	lst := list.New()
@@ -111,9 +115,19 @@ func main() {
 		}()
 	}
 
-	for range rootClient.Rx {
+	running := true
+	for running {
+		select {
+		case _, running = <-rootClient.Rx:
+			// Accept, but ignore, all messages from the root client.
+			// Start closing baps3d if the client has closed.
+		case _ = <-interrupt:
+			// Ctrl-C, so gracefully shut down.
+			rootClient.Shutdown()
+		}
 	}
 
+	rootLog.Println("Waiting for subsystems to shut down...")
 	wg.Wait()
 	rootLog.Println("It's now safe to turn off your baps3d.")
 }

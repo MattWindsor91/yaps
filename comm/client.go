@@ -70,10 +70,6 @@ func (c *Client) Copy() (*Client, error) {
 // This is equivalent to sending a ShutdownRequest through the Client,
 // but handles the various bits of paperwork.
 func (c *Client) Shutdown() {
-	if c.Tx == nil {
-		panic("double shutdown of client")
-	}
-
 	reply := make(chan Response)
 	if c.Send(Request{
 		Origin: RequestOrigin{
