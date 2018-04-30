@@ -61,7 +61,15 @@ func escapeArgument(input string) string {
 // Pack outputs the given Message as raw bytes representing a Bifrost message.
 // These bytes can be sent down a TCP connection to a Bifrost server, providing
 // they are terminated using a line-feed character.
-func (m *Message) Pack() (packed []byte, err error) {
+func (m *Message) Pack() ([]byte, error) {
+	buf, err := m.packToBuffer()
+	if err != nil {
+		return []byte{}, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (m *Message) packToBuffer() (*bytes.Buffer, error) {
 	output := bytes.NewBufferString(m.tag + " " + m.word)
 
 	for _, a := range m.args {
@@ -73,16 +81,12 @@ func (m *Message) Pack() (packed []byte, err error) {
 			}
 		}
 
-		if _, err = output.WriteString(" " + a); err != nil {
-			return
+		if _, err := output.WriteString(" " + a); err != nil {
+			return output, err
 		}
 	}
-	if _, err = output.WriteRune('\n'); err != nil {
-		return
-	}
-
-	packed = output.Bytes()
-	return
+	_, err := output.WriteRune('\n')
+	return output, err
 }
 
 // Tag returns this Message's tag.
@@ -116,17 +120,13 @@ func (m *Message) Arg(index int) (string, error) {
 }
 
 // String returns a string representation of a Message.
-// This is not the wire representation: use Pack instead.
+// This isn't necessarily the wire representation: use Pack instead.
 func (m *Message) String() string {
-	var out strings.Builder
-	out.WriteString(m.word)
-
-	for _, s := range m.args {
-		out.WriteRune(' ')
-		out.WriteString(s)
+	buf, err := m.packToBuffer()
+	if err != nil {
+		return "(error)"
 	}
-
-	return out.String()
+	return buf.String()
 }
 
 // LineToMessage constructs a Message struct from a line of word-strings.

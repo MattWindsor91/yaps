@@ -109,7 +109,7 @@ func NewBifrost(client *Client, parser BifrostParser) (*Bifrost, *BifrostClient)
 	return &bifrost, &bcl
 }
 
-func (b *Bifrost) Close() {
+func (b *Bifrost) close() {
 	// Don't shut down any of the client's own channels: other code
 	// might still try to use them.
 	// Don't shut down the controller: it might have more clients.
@@ -120,7 +120,7 @@ func (b *Bifrost) Close() {
 // Run runs the main body of the Bifrost adapter.
 // It will immediately send the new client responses to the response channel.
 func (b *Bifrost) Run() {
-	defer b.Close()
+	defer b.close()
 
 	if !b.handleNewClientResponses() {
 		return

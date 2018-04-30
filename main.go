@@ -121,7 +121,7 @@ func main() {
 		case _, running = <-rootClient.Rx:
 			// Accept, but ignore, all messages from the root client.
 			// Start closing baps3d if the client has closed.
-		case _ = <-interrupt:
+		case <-interrupt:
 			// Ctrl-C, so gracefully shut down.
 			rootClient.Shutdown()
 		}

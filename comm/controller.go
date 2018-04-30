@@ -12,7 +12,7 @@ var (
 	// ErrControllerCannotSpeakBifrost is the error sent when a Client requests
 	// a Bifrost adapter for a Controller, but its Controllable state doesn't
 	// implement BifrostParser.
-	ErrControllerCannotSpeakBifrost error = errors.New("this controller's state can't parse Bifrost messages")
+	ErrControllerCannotSpeakBifrost = errors.New("this controller's state can't parse Bifrost messages")
 )
 
 // Controller wraps a baps3d service in a channel-based interface.

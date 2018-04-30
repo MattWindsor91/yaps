@@ -162,7 +162,9 @@ func (s *Server) mainLoop() {
 			cname := conn.RemoteAddr().String()
 			if err := s.newConnection(conn); err != nil {
 				s.log.Printf("error registering connection %s: %s\n", cname, err.Error())
-				conn.Close()
+				if cerr := conn.Close(); err != nil {
+					s.log.Printf("further error closing connection %s: %s\n", cname, cerr.Error())
+				}
 			}
 		case c := <-s.clientHangUp:
 			s.hangUpClient(c)

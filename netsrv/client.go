@@ -42,7 +42,7 @@ func (c *Client) Run(bifrost *comm.Bifrost, hangUp chan<- *Client, done <-chan s
 	wg.Add(3)
 
 	go func() {
-		c.RunTx()
+		c.runTx()
 		// Only hang up if the server is still around.
 		// Otherwise, we'll just hang here waiting for the server to answer,
 		// while the server hangs up the client anyway.
@@ -92,7 +92,7 @@ func (c *Client) outputError(e error) {
 
 // runTx runs the client's message transmitter loop.
 // This reads from stdin.
-func (c *Client) RunTx() {
+func (c *Client) runTx() {
 	r := bifrost.NewReaderTokeniser(c.conn)
 
 	for {
