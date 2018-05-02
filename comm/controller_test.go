@@ -9,33 +9,42 @@ import (
 	"github.com/UniversityRadioYork/baps3d/comm"
 )
 
-type TestState struct{}
+type testState struct{}
 
-// Controllable implementation
+/*
+Dummy requests and responses
+*/
 
-func (*TestState) RoleName() string {
+type knownDummyRequest struct{}
+type unknownDummyRequest struct{}
+
+/*
+Controllable implementation
+*/
+
+func (*testState) RoleName() string {
 	return "test"
 }
 
-func (*TestState) Dump(comm.ResponseCb) {}
+func (*testState) Dump(comm.ResponseCb) {}
 
-func (*TestState) HandleRequest(replyCb, bcastCb comm.ResponseCb, rbody interface{}) error {
+func (*testState) HandleRequest(replyCb, bcastCb comm.ResponseCb, rbody interface{}) error {
 	return fmt.Errorf("unknown request")
 }
 
-type TestStateWithParser struct {
-	TestState
+type testStateWithParser struct {
+	testState
 }
 
 /*
-BifrostParser implementation for TestStateWithParser
+BifrostParser implementation for testStateWithParser
 */
 
-func (*TestStateWithParser) ParseBifrostRequest(word string, _ []string) (interface{}, error) {
+func (*testStateWithParser) ParseBifrostRequest(word string, _ []string) (interface{}, error) {
 	return nil, comm.UnknownWord(word)
 }
 
-func (*TestStateWithParser) EmitBifrostResponse(string, interface{}, chan<- bifrost.Message) error {
+func (*testStateWithParser) EmitBifrostResponse(string, interface{}, chan<- bifrost.Message) error {
 	return nil
 }
 
@@ -86,7 +95,7 @@ func TestClient_Bifrost_NoBifrostParser(t *testing.T) {
 			t.Error("received non-nil BifrostClient from failing Bifrost() call")
 		}
 	}
-	testWithController(&TestState{}, f, t)
+	testWithController(&testState{}, f, t)
 }
 
 // TestClient_Bifrost_BifrostParser tests Client.Bifrost's behaviour when its
@@ -106,5 +115,28 @@ func TestClient_Bifrost_BifrostParser(t *testing.T) {
 			t.Error("got nil BifrostClient from passing Bifrost() call")
 		}
 	}
-	testWithController(&TestStateWithParser{}, f, t)
+	testWithController(&testStateWithParser{}, f, t)
+}
+
+// TestClient_Shutdown tests Client.Shutdown's behaviour.
+func TestClient_Shutdown(t *testing.T) {
+	f := func(c *comm.Client, t *testing.T) {
+		c.Shutdown()
+		// Sends should terminate but fail.
+		// This test isn't robust: it could be that broken implementations of
+		// Shutdown doesn't always fail to shut down before returning.
+		reply := make(chan comm.Response)
+		if c.Send(comm.Request{
+			Origin: comm.RequestOrigin{
+				Tag:     "",
+				ReplyTx: reply,
+			},
+			Body: knownDummyRequest{},
+		}) {
+			t.Error("send to shut-down Client erroneously succeeded")
+		}
+		// Double shutdowns shouldn't trip errors or diverge.
+		c.Shutdown()
+	}
+	testWithController(&testState{}, f, t)
 }

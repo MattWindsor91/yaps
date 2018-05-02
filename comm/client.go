@@ -107,12 +107,12 @@ func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
 
 	bfset := false
 
-	cb := func(rb interface{}) {
+	cb := func(r Response) {
 		if innerErr != nil {
 			return
 		}
 
-		b, ok := rb.(bifrostParserResponse)
+		b, ok := r.Body.(bifrostParserResponse)
 		if !ok {
 			innerErr = fmt.Errorf("got an unexpected response")
 		}
@@ -140,13 +140,13 @@ func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
 // until an AckResponse is returned or the channel closes.
 // It returns any error coming from the AckResponse, or an error if the channel
 // closed before one arrived.
-func ProcessRepliesUntilAck(reply <-chan Response, cb func(interface{})) error {
+func ProcessRepliesUntilAck(reply <-chan Response, cb func(Response)) error {
 	for r := range reply {
 		if ack, isAck := r.Body.(AckResponse); isAck {
 			return ack.Err
 		}
 
-		cb(r.Body)
+		cb(r)
 	}
 	return fmt.Errorf("reply channel closed before ack received")
 }

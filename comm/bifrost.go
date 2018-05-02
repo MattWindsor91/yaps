@@ -233,25 +233,13 @@ func (b *Bifrost) handleNewClientResponses() bool {
 	if !b.client.Send(*makeRequest(RoleRequest{}, bifrost.TagBcast, ncreply)) {
 		return false
 	}
-	if !b.handleResponsesUntilAck(ncreply) {
+	if ProcessRepliesUntilAck(ncreply, b.handleResponse) != nil {
 		return false
 	}
 	if !b.client.Send(*makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)) {
 		return false
 	}
-	return b.handleResponsesUntilAck(ncreply)
-}
-
-// handleResponsesUntilAck handles responses on channel c until it receives ACK or the channel closes.
-func (b *Bifrost) handleResponsesUntilAck(c <-chan Response) bool {
-	for r := range c {
-		if _, isAck := r.Body.(AckResponse); isAck {
-			return true
-		}
-
-		b.handleResponse(r)
-	}
-	return false
+	return ProcessRepliesUntilAck(ncreply, b.handleResponse) == nil
 }
 
 // handleResponse handles a controller response rs.
