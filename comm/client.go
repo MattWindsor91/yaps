@@ -3,7 +3,17 @@ package comm
 // This file defines Client, a struct of channels representing a connection to a
 // Controller, and related internal types.
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	// ErrControllerShutDown is the error sent when a Client operation that
+	// needs a running Controller tries to run on a Client whose Controller has
+	// shut down.
+	ErrControllerShutDown = errors.New("this client's controller has shut down")
+)
 
 // Client is the type of external Controller client handles.
 type Client struct {
@@ -42,92 +52,81 @@ func (c *Client) Send(r Request) bool {
 //
 // If Copy returns an error, then the Controller shut down during the copy.
 func (c *Client) Copy() (*Client, error) {
-	reply := make(chan Response)
-	if !c.Send(Request{
-		Origin: RequestOrigin{
-			Tag:     "",
-			ReplyTx: reply,
-		},
-		Body: newClientRequest{},
-	}) {
-		return nil, fmt.Errorf("controller shut down while copying")
-	}
 	var ncli *Client
-	for {
-		// TODO(@MattWindsor91): be more robust if these don't appear
-		// in order
-		r := <-reply
-		switch b := r.Body.(type) {
-		case newClientResponse:
-			ncli = b.Client
-		case AckResponse:
-			return ncli, nil
+
+	cb := func(r Response) error {
+		b, ok := r.Body.(newClientResponse)
+		if !ok {
+			return fmt.Errorf("got an unexpected response")
 		}
+		if ncli != nil {
+			return fmt.Errorf("got a duplicate client response")
+		}
+		if b.Client == nil {
+			return fmt.Errorf("got a nil client response")
+		}
+
+		ncli = b.Client
+		return nil
 	}
+
+	alive, err := c.SendAndProcessReplies("", newClientRequest{}, cb)
+	if !alive {
+		return nil, ErrControllerShutDown
+	}
+	if err != nil {
+		return nil, err
+	}
+	if ncli == nil {
+		return nil, fmt.Errorf("didn't get a new client")
+	}
+
+	return ncli, nil
 }
 
 // Shutdown asks a Client to shut down its Controller.
 // This is equivalent to sending a ShutdownRequest through the Client,
 // but handles the various bits of paperwork.
-func (c *Client) Shutdown() {
-	reply := make(chan Response)
-	if c.Send(Request{
-		Origin: RequestOrigin{
-			// It doesn't matter what we put here:
-			// the only thing that'll contain it is the ACK,
-			// which we bin.
-			Tag:     "",
-			ReplyTx: reply,
-		},
-		Body: shutdownRequest{},
-	}) {
-		// Drain the shutdown acknowledgement.
-		<-reply
+func (c *Client) Shutdown() error {
+	cb := func(Response) error {
+		return fmt.Errorf("got an unexpected response")
 	}
+	// We don't care if the controller has already shut down.
+	// Client.Shutdown() should be idempotent.
+	_, err := c.SendAndProcessReplies("", shutdownRequest{}, cb)
+	return err
 }
 
 // Bifrost tries to get a Bifrost adapter for Client c's Controller.
 // This fails if the Controller's state can't understand Bifrost messages.
 func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
-	reply := make(chan Response)
-	if !c.Send(Request{
-		Origin: RequestOrigin{
-			Tag:     "",
-			ReplyTx: reply,
-		},
-		Body: bifrostParserRequest{},
-	}) {
-		return nil, nil, fmt.Errorf("controller shut down while getting a Bifrost")
-	}
 	var (
-		bf       *Bifrost
-		bfc      *BifrostClient
-		innerErr error
+		bf  *Bifrost
+		bfc *BifrostClient
 	)
 
 	bfset := false
 
-	cb := func(r Response) {
-		if innerErr != nil {
-			return
-		}
-
+	cb := func(r Response) error {
 		b, ok := r.Body.(bifrostParserResponse)
 		if !ok {
-			innerErr = fmt.Errorf("got an unexpected response")
+			return fmt.Errorf("got an unexpected response")
 		}
 		if bfset {
-			innerErr = fmt.Errorf("got a duplicate parser response")
+			return fmt.Errorf("got a duplicate parser response")
 		}
 
 		bf, bfc = NewBifrost(c, b)
 		bfset = true
+		return nil
 	}
-	if aerr := ProcessRepliesUntilAck(reply, cb); aerr != nil {
-		return nil, nil, aerr
+
+	alive, err := c.SendAndProcessReplies("", bifrostParserRequest{}, cb)
+	if !alive {
+		return nil, nil, ErrControllerShutDown
 	}
-	if innerErr != nil {
-		return nil, nil, innerErr
+	if err != nil {
+		return nil, nil, err
 	}
 	if !bfset {
 		return nil, nil, fmt.Errorf("didn't get a parser response")
@@ -136,19 +135,49 @@ func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
 	return bf, bfc, nil
 }
 
-// ProcessRepliesUntilAck feeds response bodies from the channel reply into cb
-// until an AckResponse is returned or the channel closes.
-// It returns any error coming from the AckResponse, or an error if the channel
-// closed before one arrived.
-func ProcessRepliesUntilAck(reply <-chan Response, cb func(Response)) error {
+// ProcessRepliesUntilAck drains the channel reply until an AckResponse is
+// returned or the channel closes.
+// It feeds any non-Ack response bodies receied from reply into cb until and
+// unless cb returns an error.
+//
+// It returns the first of these errors to arrive:
+// 1) an error if the channel closed before Ack arrived;
+// 2) the first error returned by cb;
+// 3) any error coming from the AckResponse.
+func ProcessRepliesUntilAck(reply <-chan Response, cb func(Response) error) error {
+	var cberr error
+
 	for r := range reply {
 		if ack, isAck := r.Body.(AckResponse); isAck {
+			if cberr != nil {
+				return cberr
+			}
 			return ack.Err
 		}
 
-		cb(r)
+		if cberr == nil {
+			cberr = cb(r)
+		}
 	}
 	return fmt.Errorf("reply channel closed before ack received")
+}
+
+// SendAndProcessReplies sends a request with tag tag and body body.
+// It then uses cb to process any non-Ack replies.
+// It returns whether the Client was able to process the message, and any error.
+func (c *Client) SendAndProcessReplies(tag string, body interface{}, cb func(Response) error) (bool, error) {
+	reply := make(chan Response)
+
+	rq := Request{
+		Origin: RequestOrigin{Tag: tag, ReplyTx: reply},
+		Body:   body,
+	}
+
+	if !c.Send(rq) {
+		return false, nil
+	}
+
+	return true, ProcessRepliesUntilAck(reply, cb)
 }
 
 // coclient is the type of internal client handles.

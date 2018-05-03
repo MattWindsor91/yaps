@@ -138,7 +138,7 @@ func (b *Bifrost) Run() {
 				return
 			}
 		case rs := <-b.reply:
-			b.handleResponse(rs)
+			b.handleResponseForwardingError(rs)
 		case rs, ok := <-b.client.Rx:
 			// No need to check b.client.Done:
 			// if the controller shuts down, it pull both this
@@ -146,7 +146,7 @@ func (b *Bifrost) Run() {
 			if !ok {
 				return
 			}
-			b.handleResponse(rs)
+			b.handleResponseForwardingError(rs)
 		}
 	}
 }
@@ -242,23 +242,25 @@ func (b *Bifrost) handleNewClientResponses() bool {
 	return ProcessRepliesUntilAck(ncreply, b.handleResponse) == nil
 }
 
-// handleResponse handles a controller response rs.
-func (b *Bifrost) handleResponse(rs Response) {
-	tag := bifrostTagOf(rs)
+// handleResponseForwardingError handles a controller response rs, forwarding
+// the error as a // message.
+func (b *Bifrost) handleResponseForwardingError(rs Response) {
+	if err := b.handleResponse(rs); err != nil {
+		b.resMsgTx <- *errorToMessage(bifrostTagOf(rs), err)
+	}
+}
 
-	var err error
+// handleResponse handles a controller response rs.
+func (b *Bifrost) handleResponse(rs Response) error {
+	tag := bifrostTagOf(rs)
 
 	switch r := rs.Body.(type) {
 	case AckResponse:
-		err = b.handleAck(tag, r)
+		return b.handleAck(tag, r)
 	case RoleResponse:
-		err = b.handleRole(tag, r)
+		return b.handleRole(tag, r)
 	default:
-		err = b.parser.EmitBifrostResponse(tag, r, b.resMsgTx)
-	}
-
-	if err != nil {
-		b.resMsgTx <- *errorToMessage(tag, err)
+		return b.parser.EmitBifrostResponse(tag, r, b.resMsgTx)
 	}
 }
 

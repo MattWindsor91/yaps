@@ -123,7 +123,9 @@ func main() {
 			// Start closing baps3d if the client has closed.
 		case <-interrupt:
 			// Ctrl-C, so gracefully shut down.
-			rootClient.Shutdown()
+			if err := rootClient.Shutdown(); err != nil {
+				rootLog.Println("couldn't shut down gracefully:", err)
+			}
 		}
 	}
 

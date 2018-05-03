@@ -75,7 +75,6 @@ func (c *Console) Run() error {
 	}()
 	go func() {
 		c.runTx()
-		c.client.Shutdown()
 		wg.Done()
 	}()
 	go func() {
@@ -233,8 +232,7 @@ func (c *Console) handleQuit(args []string) error {
 	}
 
 	c.txrun = false
-	c.client.Shutdown()
-	return nil
+	return c.client.Shutdown()
 }
 
 // parseSpecialCommand tries to interpret word as a special command.

@@ -69,7 +69,9 @@ func New(l *log.Logger, host string, rc *comm.Client) *Server {
 
 func (s *Server) shutdownController() {
 	s.log.Println("shutting down")
-	s.rootClient.Shutdown()
+	if err := s.rootClient.Shutdown(); err != nil {
+		s.log.Println("couldn't shut down gracefully:", err)
+	}
 }
 
 // newConnection sets up the server s to handle incoming connection c.
