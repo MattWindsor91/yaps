@@ -50,7 +50,7 @@ func (l *List) freezeResponse() FreezeResponse {
 
 // Dump handles a dump request.
 func (l *List) Dump(dumpCb comm.ResponseCb) {
-	// SPEC: see https://universityradioyork.github.io/baps3-spec/protocol/roles/lis
+	// SPEC: see https://universityradioyork.github.io/baps3-spec/protocol/roles/list
 	dumpCb(l.autoModeResponse())
 	dumpCb(l.freezeResponse())
 	dumpCb(l.selectResponse())
