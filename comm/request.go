@@ -28,6 +28,14 @@ type Request struct {
 // DumpRequest requests an information dump.
 type DumpRequest struct{}
 
+// OnRequest represents a request to forward a request to a mount point.
+type OnRequest struct {
+	// The string identifier of the mount point to which the request should be forwarded.
+	MountPoint string
+	// The body of the request to forward.
+	Request    Request
+}
+
 // RoleRequest requests the Bifrost role of the connected Controller.
 // It will result in a RoleResponse reply.
 type RoleRequest struct{}

@@ -25,7 +25,7 @@ type Client struct {
 	conClient *comm.Client
 
 	// conBifrost is the Bifrost adapter for conClient.
-	conBifrost *comm.BifrostClient
+	conBifrost *bifrost.Client
 }
 
 // Close closes the given client.
@@ -70,8 +70,8 @@ func (c *Client) Run(bifrost *comm.Bifrost, hangUp chan<- *Client, done <-chan s
 // This writes messages to the socket.
 func (c *Client) runRx() {
 	// We don't have to check c.bclient.Done here:
-	// client always drops both Rx and Done when shutting down.
-	for m := range c.conBifrost.Rx {
+	// client always drops both ResRx and Done when shutting down.
+	for m := range c.conBifrost.ResRx {
 		mbytes, err := m.Pack()
 		if err != nil {
 			c.outputError(err)

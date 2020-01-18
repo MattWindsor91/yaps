@@ -1,5 +1,7 @@
 package comm
 
+import "github.com/UniversityRadioYork/baps3d/bifrost"
+
 // File response.go contains the high-level Response type, and response bodies common to all Controllers.
 
 // Response is the base structure for responses from a Controller.
@@ -25,6 +27,14 @@ type AckResponse struct {
 	Err error
 }
 
+// OnResponse represents a response to a forwarded request.
+type OnResponse struct {
+	// The string identifier of the mount point from which the request has been forwarded.
+	MountPoint string
+	// The body of the response being forwarded.
+	Request    Response
+}
+
 // RoleResponse announces the Controller's Bifrost role.
 type RoleResponse struct {
 	// Role is the role of the Controller.
@@ -42,4 +52,4 @@ type newClientResponse struct {
 }
 
 // bifrostParserResponse responds to a request for a Bifrost parser.
-type bifrostParserResponse BifrostParser
+type bifrostParserResponse bifrost.Parser

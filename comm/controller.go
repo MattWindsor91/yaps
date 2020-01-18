@@ -5,6 +5,8 @@ package comm
 
 import (
 	"errors"
+	"fmt"
+	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"reflect"
 )
 
@@ -25,6 +27,9 @@ type Controller struct {
 	// Each client that subscribes gets a Client struct with the other sides.
 	// Each client maps to its current index in cselects.
 	clients map[coclient]int
+
+	// mounts is the mapping of mount-point names to Clients that represent 'mounted' Controllers.
+	mounts map[string]Client
 
 	// cselects is the list of cases, one per client, used in the connector select loop.
 	// It gets rebuilt every time a client connects or disconnects.
@@ -137,6 +142,8 @@ func (c *Controller) handleRequest(rq Request) {
 	switch body := rq.Body.(type) {
 	case RoleRequest:
 		err = c.handleRoleRequest(o, body)
+	case OnRequest:
+		err = c.handleOnRequest(o, body)
 	case DumpRequest:
 		err = c.handleDumpRequest(o, body)
 	case newClientRequest:
@@ -176,6 +183,18 @@ func (c *Controller) handleNewClientRequest(o RequestOrigin, b newClientRequest)
 	return nil
 }
 
+// handleOnRequest handles an 'on' request with origin o and body b.
+func (c *Controller) handleOnRequest(o RequestOrigin, b OnRequest) error {
+	m, ok := c.mounts[b.MountPoint]
+	if !ok {
+		return fmt.Errorf("no such mount point: %s", b.MountPoint)
+	}
+	if !m.Send(b.Request) {
+		return fmt.Errorf("couldn't send to mount point: %s", b.MountPoint)
+	}
+	return nil
+}
+
 // handleRoleRequest handles a role request with origin o and body b.
 func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
 	c.reply(o, RoleResponse{Role: c.state.RoleName()})
@@ -191,9 +210,13 @@ func (c *Controller) handleShutdownRequest(o RequestOrigin, b shutdownRequest) e
 	return nil
 }
 
+//
+// Responding
+//
+
 // handleBifrostParserRequest handles a get-Bifrost-parser request with origin o and body b.
 func (c *Controller) handleBifrostParserRequest(o RequestOrigin, b bifrostParserRequest) error {
-	bp, ok := c.state.(BifrostParser)
+	bp, ok := c.state.(bifrost.Parser)
 	if !ok {
 		return ErrControllerCannotSpeakBifrost
 	}
@@ -201,10 +224,6 @@ func (c *Controller) handleBifrostParserRequest(o RequestOrigin, b bifrostParser
 	c.reply(o, bifrostParserResponse(bp))
 	return nil
 }
-
-//
-// Responding
-//
 
 // reply sends a unicast response with body rbody to the request origin to.
 func (c *Controller) reply(to RequestOrigin, rbody interface{}) {

@@ -6,6 +6,7 @@ package comm
 import (
 	"errors"
 	"fmt"
+	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
 
 var (
@@ -17,10 +18,10 @@ var (
 
 // Client is the type of external Controller client handles.
 type Client struct {
-	// Tx is the channel through which the Client can send requests to the Controller.
+	// ReqTx is the channel through which the Client can send requests to the Controller.
 	Tx chan<- Request
 
-	// Rx is the channel on which the Controller sends status update messages.
+	// ResRx is the channel on which the Controller sends status update messages.
 	Rx <-chan Response
 
 	// Done is the channel through which the Controller tells transmitters
@@ -32,7 +33,7 @@ type Client struct {
 // Send tries to send a request on a Client.
 // It returns false if the Client has shut down.
 //
-// Send is just sugar over a Select between Tx and Done, and it is
+// Send is just sugar over a Select between ReqTx and Done, and it is
 // ok to do this manually using the channels themselves.
 func (c *Client) Send(r Request) bool {
 	select {
@@ -99,10 +100,10 @@ func (c *Client) Shutdown() error {
 
 // Bifrost tries to get a Bifrost adapter for Client c's Controller.
 // This fails if the Controller's state can't understand Bifrost messages.
-func (c *Client) Bifrost() (*Bifrost, *BifrostClient, error) {
+func (c *Client) Bifrost() (*Bifrost, *bifrost.Client, error) {
 	var (
 		bf  *Bifrost
-		bfc *BifrostClient
+		bfc *bifrost.Client
 	)
 
 	bfset := false

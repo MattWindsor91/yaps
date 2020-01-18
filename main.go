@@ -57,7 +57,7 @@ func main() {
 	cfile := "baps3d.toml"
 	conf, err := config.Parse(cfile)
 	if err != nil {
-		rootLog.Printf("couldn't open config: %s\n", err.Error())
+		rootLog.Printf("couldn't open config: %v\n", err)
 		return
 	}
 
@@ -66,11 +66,18 @@ func main() {
 
 	var wg sync.WaitGroup
 
+	if len(conf.Lists) != 1 {
+		rootLog.Printf("FIXME: must have precisely one configured list, got %d\n", len(conf.Lists))
+		return
+	}
+	// lstConf := conf.Lists[0]
+
 	lst := list.New()
 	lstCon, rootClient := comm.NewController(lst)
 	wg.Add(1)
 	go func() {
 		lstCon.Run()
+		rootLog.Println("list controller closing")
 		wg.Done()
 	}()
 
@@ -80,6 +87,7 @@ func main() {
 			if err := runNet(rootClient, conf.Net); err != nil {
 				rootLog.Println("netsrv error:", err)
 			}
+			rootLog.Println("netsrv closing")
 			wg.Done()
 		}()
 	}
@@ -90,6 +98,7 @@ func main() {
 			if err := runConsole(rootClient, conf.Console); err != nil {
 				rootLog.Println("console error:", err)
 			}
+			rootLog.Println("console closing")
 			wg.Done()
 		}()
 	}
