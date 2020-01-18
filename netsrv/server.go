@@ -1,6 +1,7 @@
 package netsrv
 
 import (
+	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"log"
 	"net"
 	"sync"
@@ -90,11 +91,16 @@ func (s *Server) newConnection(c net.Conn) error {
 		return err
 	}
 
+	ioClient := bifrost.IoClient{
+		Conn:    c,
+		Bifrost: conBifrostClient,
+	}
+
+
 	cli := Client{
 		name:       cname,
-		conn:       c,
+		ioClient:   &ioClient,
 		conClient:  conClient,
-		conBifrost: conBifrostClient,
 		log:        s.log,
 	}
 

@@ -40,7 +40,7 @@ type Bifrost struct {
 
 // NewBifrost wraps client inside a Bifrost adapter with parsing and emitting
 // done by parser.
-// It returns a BifrostClient for talking to the adapter.
+// It returns a bifrost.Client for talking to the adapter.
 func NewBifrost(client *Client, parser bifrost.Parser) (*Bifrost, *bifrost.Client) {
 	reply := make(chan Response)
 
@@ -57,7 +57,7 @@ func NewBifrost(client *Client, parser bifrost.Parser) (*Bifrost, *bifrost.Clien
 }
 
 func (b *Bifrost) respond(m bifrost.Message) {
-	b.bifrost.ResTx <- m
+	b.bifrost.Tx <- m
 }
 
 func (b *Bifrost) close() {
@@ -80,7 +80,7 @@ func (b *Bifrost) Run() {
 		// Either way, we need to close.
 
 		select {
-		case rq, ok := <-b.bifrost.ReqRx:
+		case rq, ok := <-b.bifrost.Rx:
 			if !ok || !b.handleRequest(rq) {
 				return
 			}
@@ -207,7 +207,7 @@ func (b *Bifrost) handleResponse(rs Response) error {
 	case RoleResponse:
 		return b.handleRole(tag, r)
 	default:
-		return b.parser.EmitBifrostResponse(tag, r, b.bifrost.ResTx)
+		return b.parser.EmitBifrostResponse(tag, r, b.bifrost.Tx)
 	}
 }
 

@@ -20,7 +20,6 @@ type knownDummyRequest struct {
 	// True if the dummy response should be broadcast.
 	Broadcast bool
 }
-type unknownDummyRequest struct{}
 type knownDummyResponse struct{}
 
 /*

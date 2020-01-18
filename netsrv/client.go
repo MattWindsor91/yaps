@@ -1,7 +1,7 @@
 package netsrv
 
 import (
-	"io"
+	"errors"
 	"log"
 	"sync"
 
@@ -17,70 +17,54 @@ type Client struct {
 	// log holds the logger for this client.
 	log *log.Logger
 
-	// conn holds the internal client.
-	conn io.ReadWriteCloser
-
 	// conClient is the client's Client for the Controller for this
 	// server.
 	conClient *comm.Client
 
-	// conBifrost is the Bifrost adapter for conClient.
-	conBifrost *bifrost.Client
+	// ioClient is the underlying Bifrost-level client.
+	ioClient *bifrost.IoClient
 }
 
 // Close closes the given client.
 func (c *Client) Close() error {
 	// TODO(@MattWindsor91): disconnect client and bifrost
-	return c.conn.Close()
+	return c.ioClient.Close()
 }
 
 // Run spins up the client's receiver and transmitter loops.
-// It takes the client's Bifrost adapter,
-// and the server's client hangup and done channels.
-func (c *Client) Run(bifrost *comm.Bifrost, hangUp chan<- *Client, done <-chan struct{}) {
+// It takes the client's Bifrost adapter, and the server's client hangup and done channels.
+func (c *Client) Run(bf *comm.Bifrost, hangUp chan<- *Client, done <-chan struct{}) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
+	errCh := make(chan error)
+
 	go func() {
-		c.runTx()
-		// Only hang up if the server is still around.
-		// Otherwise, we'll just hang here waiting for the server to answer,
-		// while the server hangs up the client anyway.
-		select {
-		case hangUp <- c:
-		case <-done:
-		}
+		c.ioClient.Run(errCh, done)
 		wg.Done()
 	}()
 
 	go func() {
-		c.runRx()
+		c.handleIoErrors(errCh, hangUp)
 		wg.Done()
 	}()
 
 	go func() {
-		bifrost.Run()
+		bf.Run()
 		wg.Done()
 	}()
 
 	wg.Wait()
 }
 
-// runRx runs the client's message receiver loop.
-// This writes messages to the socket.
-func (c *Client) runRx() {
-	// We don't have to check c.bclient.Done here:
-	// client always drops both ResRx and Done when shutting down.
-	for m := range c.conBifrost.ResRx {
-		mbytes, err := m.Pack()
-		if err != nil {
+// handleIoErrors monitors errCh for errors, forwarding any hangup requests coming through to hangUp and logging all
+// other errors.
+func (c *Client) handleIoErrors(errCh <-chan error, hangUp chan<- *Client) {
+	for err := range errCh {
+		if errors.Is(err, bifrost.HungUpError) {
+			hangUp <- c
+		} else {
 			c.outputError(err)
-			continue
-		}
-
-		if _, err := c.conn.Write(mbytes); err != nil {
-			c.outputError(err)
-			break
 		}
 	}
 }
@@ -88,29 +72,4 @@ func (c *Client) runRx() {
 // outputError logs a connection error for client c.
 func (c *Client) outputError(e error) {
 	c.log.Printf("connection error on %s: %s\n", c.name, e.Error())
-}
-
-// runTx runs the client's message transmitter loop.
-// This reads from stdin.
-func (c *Client) runTx() {
-	r := bifrost.NewReaderTokeniser(c.conn)
-
-	for {
-		line, terr := r.ReadLine()
-		if terr != nil {
-			c.outputError(terr)
-			break
-		}
-
-		msg, merr := bifrost.LineToMessage(line)
-		if merr != nil {
-			c.outputError(merr)
-			break
-		}
-
-		if !c.conBifrost.Send(*msg) {
-			c.log.Printf("client died while sending message on %s", c.name)
-			break
-		}
-	}
 }

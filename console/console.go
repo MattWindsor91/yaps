@@ -93,8 +93,8 @@ func (c *Console) Run() error {
 // This prints messages to stdout.
 func (c *Console) runRx() {
 	// We don't have to check c.bclient.Done here:
-	// client always drops both ResRx and Done when shutting down.
-	for m := range c.bclient.ResRx {
+	// client always drops both Rx and Done when shutting down.
+	for m := range c.bclient.Rx {
 		mbytes, err := m.Pack()
 		if err != nil {
 			c.outputError(err)
