@@ -68,14 +68,16 @@ func (c *Console) Run() error {
 	var wg sync.WaitGroup
 	var err error
 
-	wg.Add(3)
+	// There is seemingly no easy way of making the transmission loop close gracefully;
+	// we consequently don't add it to the wait group.
+	wg.Add(2)
 	go func() {
 		c.bf.Run()
 		wg.Done()
 	}()
 	go func() {
 		c.runTx()
-		wg.Done()
+		// See above
 	}()
 	go func() {
 		c.runRx()
