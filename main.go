@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/UniversityRadioYork/baps3d/config"
 	"io"
 	"io/ioutil"
 	"log"
@@ -8,32 +9,11 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
 	"github.com/UniversityRadioYork/baps3d/list"
 	"github.com/UniversityRadioYork/baps3d/netsrv"
 )
-
-type config struct {
-	Console consoleConfig
-	Net     netConfig
-}
-
-type netConfig struct {
-	// Enabled toggles whether the net server is enabled.
-	Enabled bool
-	// Host is the TCP host:port string for the net server.
-	Host string
-	// Log toggles whether the net server logs to stderr.
-	Log bool
-}
-
-type consoleConfig struct {
-	// Enabled toggles whether the console is enabled.
-	Enabled bool
-}
 
 func makeLog(section string, enabled bool) *log.Logger {
 	var lw io.Writer
@@ -46,7 +26,7 @@ func makeLog(section string, enabled bool) *log.Logger {
 	return log.New(lw, "["+section+"] ", log.LstdFlags)
 }
 
-func runNet(rootClient *comm.Client, ncfg netConfig) error {
+func runNet(rootClient *comm.Client, ncfg config.Net) error {
 	netClient, err := rootClient.Copy()
 	if err != nil {
 		return err
@@ -58,7 +38,7 @@ func runNet(rootClient *comm.Client, ncfg netConfig) error {
 	return nil
 }
 
-func runConsole(rootClient *comm.Client, ccfg consoleConfig) error {
+func runConsole(rootClient *comm.Client, ccfg config.Console) error {
 	consoleClient, err := rootClient.Copy()
 	if err != nil {
 		return err
@@ -75,8 +55,7 @@ func main() {
 	rootLog := makeLog("root", true)
 
 	cfile := "baps3d.toml"
-	var conf config
-	_, err := toml.DecodeFile(cfile, &conf)
+	conf, err := config.Parse(cfile)
 	if err != nil {
 		rootLog.Printf("couldn't open config: %s\n", err.Error())
 		return
