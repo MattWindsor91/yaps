@@ -2,6 +2,7 @@ package comm_test
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -43,9 +44,10 @@ func (*testState) HandleRequest(replyCb, bcastCb comm.ResponseCb, rbody interfac
 		}
 
 		cb(knownDummyResponse{})
+		return nil
+	default:
+		return fmt.Errorf("unknown request")
 	}
-
-	return fmt.Errorf("unknown request")
 }
 
 type testStateWithParser struct {
@@ -92,6 +94,45 @@ func testWithController(s comm.Controllable, f func(*comm.Client, *testing.T), t
 /*
 Test functions
 */
+
+// TestClient_Send_Reply tests using Client.Send to send a known request with
+// a unicast reply.
+func TestClient_Send_Reply(t *testing.T) {
+	f := func(c *comm.Client, t *testing.T) {
+		reply := make(chan comm.Response)
+
+		rq := comm.Request{
+			Origin: comm.RequestOrigin{Tag: "test1", ReplyTx: reply},
+			Body:   knownDummyRequest{},
+		}
+
+		if !c.Send(rq) {
+			t.Fatal("controller shut down before we could send test request")
+		}
+
+		checkReply := func(slot, typename string) {
+			rr, rrok := <-reply
+			if !rrok {
+				t.Fatalf("reply channel closed after %s response", slot)
+			}
+			if rr.Broadcast {
+				t.Errorf("%s response erroneously marked as broadcast", slot)
+			}
+			if rr.Origin == nil {
+				t.Errorf("%s response erroneously has no origin", slot)
+			} else if rr.Origin.Tag != "test1" {
+				t.Errorf("%s response has wrong tag: got %s", slot, rr.Origin.Tag)
+			}
+			rrtype := reflect.TypeOf(rr.Body).String()
+			if rrtype != typename {
+				t.Fatalf("unexpected %s response type: want %s, got %s", slot, typename, rrtype)
+			}
+		}
+		checkReply("first", "comm_test.knownDummyResponse")
+		checkReply("second", "comm.AckResponse")
+	}
+	testWithController(&testState{}, f, t)
+}
 
 // TestClient_Bifrost_NoBifrostParser tests Client.Bifrost's behaviour when its
 // parent Controller's inner state doesn't understand Bifrost.
@@ -163,18 +204,54 @@ func TestClient_Shutdown(t *testing.T) {
 	testWithController(&testState{}, f, t)
 }
 
-// TestClient_Copy_Shutdown tests Client.Copy's behaviour on a shut-down client.
-func TestClient_Copy_Shutdown(t *testing.T) {
+// TestClient_CopyBeforeShutdown tests what happens when we shutdown a
+// controller with a copied client.
+func TestClient_CopyBeforeShutdown(t *testing.T) {
+	f := func(c *comm.Client, t *testing.T) {
+		c2, err := c.Copy()
+		if err != nil {
+			t.Fatalf("unexpected error on copy: %s", err.Error())
+		}
+
+		if err := c.Shutdown(); err != nil {
+			t.Fatalf("unexpected error on original shutdown: %s", err.Error())
+		}
+
+		// The second client shouldn't be taking requests.
+		reply := make(chan comm.Response)
+		if c2.Send(comm.Request{
+			Origin: comm.RequestOrigin{
+				Tag:     "",
+				ReplyTx: reply,
+			},
+			Body: knownDummyRequest{},
+		}) {
+			t.Error("send to shut-down Client copy erroneously succeeded")
+		}
+
+		// The second client shouldn't error on a second shutdown.
+		if err := c2.Shutdown(); err != nil {
+			t.Fatalf("unexpected error on copy shutdown: %s", err.Error())
+		}
+	}
+	testWithController(&testState{}, f, t)
+}
+
+// TestClient_CopyAfterShutdown tests Client.Copy's behaviour on a shut-down client.
+func TestClient_CopyAfterShutdown(t *testing.T) {
 	f := func(c *comm.Client, t *testing.T) {
 		if err := c.Shutdown(); err != nil {
 			t.Fatalf("unexpected error on shutdown: %s", err.Error())
 		}
-		c, err := c.Copy()
+		c2, err := c.Copy()
 		if err == nil {
 			t.Fatalf("didn't get error when Copying on a shutdown controller")
 		}
 		if err != comm.ErrControllerShutDown {
 			t.Fatalf("got wrong error when Copying on a shutdown controller: %s", err.Error())
+		}
+		if c2 != nil {
+			t.Fatalf("got non-nil Client when Copying on a shutdown controller")
 		}
 	}
 	testWithController(&testState{}, f, t)
