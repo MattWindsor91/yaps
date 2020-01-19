@@ -29,7 +29,7 @@ const (
 type Console struct {
 	client  *comm.Client
 	bf      *comm.Bifrost
-	bclient *bifrost.Client
+	bclient *bifrost.Endpoint
 	tok     *bifrost.Tokeniser
 	rl      *readline.Instance
 	txrun   bool
@@ -113,25 +113,28 @@ func (c *Console) runRx() {
 func (c *Console) runTx(ctx context.Context) {
 	c.txrun = true
 	for c.txrun {
-		string, terr := c.rl.Readline()
+		line, terr := c.rl.Readline()
 
 		if terr != nil {
 			c.outputError(terr)
 			return
 		}
 
-		// Readline doesn't give us the newline
-		var sbuf bytes.Buffer
-		sbuf.WriteString(string)
-		sbuf.WriteRune('\n')
-
-		needMore := c.handleRawLine(ctx, sbuf.Bytes())
+		needMore := c.handleRawLine(ctx, lineToTerminatedBytes(line))
 		if needMore {
 			c.rl.SetPrompt(promptContinue)
 		} else {
 			c.rl.SetPrompt(promptNormal)
 		}
 	}
+}
+
+// lineToTerminatedBytes turns a line string, less a newline, to a byte array with a newline.
+func lineToTerminatedBytes(line string) []byte {
+	var sbuf bytes.Buffer
+	sbuf.WriteString(line)
+	sbuf.WriteRune('\n')
+	return sbuf.Bytes()
 }
 
 func (c *Console) handleRawLine(ctx context.Context, bytes []byte) bool {

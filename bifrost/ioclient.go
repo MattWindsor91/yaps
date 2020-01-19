@@ -16,7 +16,7 @@ type IoClient struct {
 	Conn io.ReadWriteCloser
 
 	// bifrost holds the Bifrost channel pair used by the IoClient.
-	Bifrost *Client
+	Bifrost *Endpoint
 }
 
 func (c *IoClient) Close() error {

@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/UniversityRadioYork/baps3d/config"
+	"golang.org/x/sync/errgroup"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 
 	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
@@ -45,11 +46,11 @@ func runConsole(ctx context.Context, rootClient *comm.Client, ccfg config.Consol
 		return err
 	}
 
-	console, err := console.New(ctx, consoleClient)
+	con, err := console.New(ctx, consoleClient)
 	if err != nil {
 		return err
 	}
-	return console.Run(ctx)
+	return con.Run(ctx)
 }
 
 func main() {
@@ -67,7 +68,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	var wg sync.WaitGroup
+	var errg errgroup.Group
 
 	if len(conf.Lists) != 1 {
 		rootLog.Printf("FIXME: must have precisely one configured list, got %d\n", len(conf.Lists))
@@ -77,36 +78,45 @@ func main() {
 
 	lst := list.New()
 	lstCon, rootClient := comm.NewController(lst)
-	wg.Add(1)
-	go func() {
+	errg.Go(func() error {
 		lstCon.Run(ctx)
-		cancel()
 		rootLog.Println("list controller closing")
-		wg.Done()
-	}()
+		return nil
+	})
 
 	if conf.Net.Enabled {
-		wg.Add(1)
-		go func() {
-			if err := runNet(ctx, rootClient, conf.Net); err != nil {
-				rootLog.Println("netsrv error:", err)
+		errg.Go(func() error {
+			err := runNet(ctx, rootClient, conf.Net)
+			if err != nil {
+				err = fmt.Errorf("netsrv error: %w", err)
 			}
 			rootLog.Println("netsrv closing")
-			wg.Done()
-		}()
+			return err
+		})
 	}
 
 	if conf.Console.Enabled {
-		wg.Add(1)
-		go func() {
-			if err := runConsole(ctx, rootClient, conf.Console); err != nil {
-				rootLog.Println("console error:", err)
+		errg.Go(func() error {
+			err := runConsole(ctx, rootClient, conf.Console)
+			if err != nil {
+				err = fmt.Errorf("console error: %w", err)
 			}
 			rootLog.Println("console closing")
-			wg.Done()
-		}()
+			return err
+		})
 	}
 
+	mainLoop(rootClient, interrupt, ctx, rootLog)
+	cancel()
+
+	rootLog.Println("Waiting for subsystems to shut down...")
+	if err := errg.Wait(); err != nil {
+		rootLog.Printf("main subsystem error: %s", err.Error())
+	}
+	rootLog.Println("It's now safe to turn off your baps3d.")
+}
+
+func mainLoop(rootClient *comm.Client, interrupt chan os.Signal, ctx context.Context, rootLog *log.Logger) {
 	running := true
 	for running {
 		select {
@@ -120,8 +130,4 @@ func main() {
 			}
 		}
 	}
-
-	rootLog.Println("Waiting for subsystems to shut down...")
-	wg.Wait()
-	rootLog.Println("It's now safe to turn off your baps3d.")
 }

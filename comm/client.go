@@ -32,10 +32,9 @@ type Client struct {
 // Send is just sugar over a Select between Tx and ctx.Done(), and it is
 // ok to do this manually using the channels themselves.
 func (c *Client) Send(ctx context.Context, r Request) bool {
-	done := ctx.Done()
 	select {
 	case c.Tx <- r:
-	case <-done:
+	case <-ctx.Done():
 		return false
 	}
 	return true
@@ -97,10 +96,10 @@ func (c *Client) Shutdown(ctx context.Context) error {
 
 // Bifrost tries to get a Bifrost adapter for Client c's Controller.
 // This fails if the Controller's state can't understand Bifrost messages.
-func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *bifrost.Client, error) {
+func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *bifrost.Endpoint, error) {
 	var (
 		bf  *Bifrost
-		bfc *bifrost.Client
+		bfc *bifrost.Endpoint
 	)
 
 	bfset := false

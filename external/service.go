@@ -30,7 +30,7 @@ func NewService(address string) (c *Service, err error) {
 		return nil, err
 	}
 
-	bcl, bep := bifrost.NewClient()
+	bcl, bep := bifrost.NewEndpointPair()
 
 	var role string
 	if role, err = handshake(bep); err != nil {

@@ -41,20 +41,20 @@ type Bifrost struct {
 
 // NewBifrost wraps client inside a Bifrost adapter with parsing and emitting
 // done by parser.
-// It returns a bifrost.Client for talking to the adapter.
-func NewBifrost(client *Client, parser bifrost.Parser) (*Bifrost, *bifrost.Client) {
+// It returns a bifrost.Endpoint for talking to the adapter.
+func NewBifrost(client *Client, parser bifrost.Parser) (*Bifrost, *bifrost.Endpoint) {
 	reply := make(chan Response)
 
-	bcl, bep := bifrost.NewClient()
+	pubEnd, privEnd := bifrost.NewEndpointPair()
 
 	bif := Bifrost{
-		client:   client,
-		bifrost:  bep,
-		reply:    reply,
-		parser:   parser,
+		client:  client,
+		bifrost: privEnd,
+		reply:   reply,
+		parser:  parser,
 	}
 
-	return &bif, bcl
+	return &bif, pubEnd
 }
 
 func (b *Bifrost) respond(m bifrost.Message) {

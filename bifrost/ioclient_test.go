@@ -125,7 +125,7 @@ func makeMockIoClient(t *testing.T) (*IoClient, *Endpoint, *mock_conn.End) {
 	t.Helper()
 
 	conn := mock_conn.NewConn()
-	bfc, bfe := NewClient()
+	bfc, bfe := NewEndpointPair()
 	ic := IoClient{Conn: conn.Server, Bifrost: bfc}
 	return &ic, bfe, conn.Client
 }
