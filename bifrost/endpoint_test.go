@@ -2,6 +2,7 @@ package bifrost
 
 import (
 	"context"
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"testing"
 )
 
@@ -16,21 +17,21 @@ func TestNewEndpointPair_TxRx(t *testing.T) {
 }
 
 // Tests one side of an endpoint pair Tx/Rx connection.
-func testEndpointTxRx(t *testing.T, tx chan<- Message, rx <-chan Message) {
+func testEndpointTxRx(t *testing.T, tx chan<- msgproto.Message, rx <-chan msgproto.Message) {
 	t.Helper()
 
-	msg := NewMessage("foo", "bar").AddArg("baz")
+	msg := msgproto.NewMessage("foo", "bar").AddArg("baz")
 	go func() { tx <- *msg }()
 	msg2 := <-rx
 
-	AssertMessagesEqual(t, msg, &msg2)
+	msgproto.AssertMessagesEqual(t, msg, &msg2)
 }
 
 func TestEndpoint_Send(t *testing.T) {
 	l, r := NewEndpointPair()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	msg := NewMessage("!", "jam").AddArg("on").AddArg("toast")
+	msg := msgproto.NewMessage("!", "jam").AddArg("on").AddArg("toast")
 
 	go func() {
 		if !l.Send(ctx, *msg) {
@@ -39,7 +40,7 @@ func TestEndpoint_Send(t *testing.T) {
 	}()
 
 	msg2 := <-r.Rx
-	AssertMessagesEqual(t, msg, &msg2)
+	msgproto.AssertMessagesEqual(t, msg, &msg2)
 
 	// After cancelling, sends should fail.
 	cancel()

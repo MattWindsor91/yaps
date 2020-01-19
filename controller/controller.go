@@ -1,4 +1,4 @@
-package comm
+package controller
 
 // This file defines Controller, an object that encapsulates part of a baps3d server's state and provides a Request/Response interface to it.
 // The baps3d state must satisfy the 'Controllable' interface.

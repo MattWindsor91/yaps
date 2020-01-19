@@ -3,6 +3,7 @@ package bifrost
 import (
 	"context"
 	"errors"
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"io"
 	"sync"
 )
@@ -69,7 +70,7 @@ func (c *IoClient) runRx(ctx context.Context, errCh chan<- error) {
 
 // runTx runs the client's message transmitter loop.
 func (c *IoClient) runTx(ctx context.Context, errCh chan<- error) {
-	r := NewReaderTokeniser(c.Conn)
+	r := msgproto.NewReaderTokeniser(c.Conn)
 
 	for {
 		if err := c.txLine(ctx, r); err != nil {
@@ -80,14 +81,14 @@ func (c *IoClient) runTx(ctx context.Context, errCh chan<- error) {
 }
 
 // txLine transmits a line from the ReaderTokeniser r
-func (c *IoClient) txLine(ctx context.Context, r *ReaderTokeniser) (err error) {
+func (c *IoClient) txLine(ctx context.Context, r *msgproto.ReaderTokeniser) (err error) {
 	var line []string
 	if line, err = r.ReadLine(); err != nil {
 		return err
 	}
 
-	var msg *Message
-	if msg, err = LineToMessage(line); err != nil {
+	var msg *msgproto.Message
+	if msg, err = msgproto.LineToMessage(line); err != nil {
 		return err
 	}
 

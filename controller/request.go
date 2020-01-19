@@ -1,4 +1,4 @@
-package comm
+package controller
 
 // File request.go contains the high-level Request type, and request bodies common to all Controllers.
 

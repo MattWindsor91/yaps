@@ -1,19 +1,18 @@
-package comm
+package controller
 
 // File comm/bifrost.go provides types and functions for creating bridges between Controllers and the Bifrost protocol.
 
 import (
 	"context"
 	"fmt"
+	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
 
-// pversion is the Bifrost semantic protocol version.
-var pversion = "bifrost-0.0.0"
-
 // sversion is the Baps3D semantic server version.
-var sversion = "baps3d-0.0.0"
+const sversion = "baps3d-0.0.0"
 
 // UnknownWord returns an error for when a Bifrost parser doesn't understand the
 // word w.
@@ -56,7 +55,7 @@ func NewBifrost(client *Client, parser bifrost.Parser) (*Bifrost, *bifrost.Endpo
 	return &bif, pubEnd
 }
 
-func (b *Bifrost) respond(m bifrost.Message) {
+func (b *Bifrost) respond(m msgproto.Message) {
 	b.bifrost.Tx <- m
 }
 
@@ -105,7 +104,7 @@ func (b *Bifrost) Run(ctx context.Context) {
 // handleRequest handles the request message rq.
 // It returns whether or not the client is still able to handle
 // requests.
-func (b *Bifrost) handleRequest(ctx context.Context, rq bifrost.Message) bool {
+func (b *Bifrost) handleRequest(ctx context.Context, rq msgproto.Message) bool {
 	request, err := b.fromMessage(rq)
 	if err != nil {
 		b.respond(*errorToMessage(rq.Tag(), err))
@@ -116,7 +115,7 @@ func (b *Bifrost) handleRequest(ctx context.Context, rq bifrost.Message) bool {
 }
 
 // fromMessage tries to parse a message as a controller request.
-func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
+func (b *Bifrost) fromMessage(m msgproto.Message) (*Request, error) {
 	rbody, err := b.bodyFromMessage(m)
 	if err != nil {
 		return nil, err
@@ -126,7 +125,7 @@ func (b *Bifrost) fromMessage(m bifrost.Message) (*Request, error) {
 }
 
 // bodyFromMessage tries to parse a message as the body of a controller request.
-func (b *Bifrost) bodyFromMessage(m bifrost.Message) (interface{}, error) {
+func (b *Bifrost) bodyFromMessage(m msgproto.Message) (interface{}, error) {
 	// Standard requests first.
 	switch m.Word() {
 	case "dump":
@@ -173,17 +172,21 @@ func (b *Bifrost) handleNewClientResponses(ctx context.Context) bool {
 	// SPEC: see http://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
 
 	// OHAI is a Bifrost-ism, so we don't bother asking the Client about it
-	b.respond(*bifrost.NewMessage(bifrost.TagBcast, bifrost.RsOhai).AddArg(pversion).AddArg(sversion))
+	ohai := corecmd.OhaiResponse{
+		ProtocolVer: corecmd.ThisProtocolVer,
+		ServerVer:   sversion,
+	}
+	b.respond(*ohai.Message(msgproto.TagBcast))
 
 	// We don't use b.reply here, because we want to suppress ACK.
 	ncreply := make(chan Response)
-	if !b.client.Send(ctx, *makeRequest(RoleRequest{}, bifrost.TagBcast, ncreply)) {
+	if !b.client.Send(ctx, *makeRequest(RoleRequest{}, msgproto.TagBcast, ncreply)) {
 		return false
 	}
 	if ProcessRepliesUntilAck(ncreply, b.handleResponse) != nil {
 		return false
 	}
-	if !b.client.Send(ctx, *makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)) {
+	if !b.client.Send(ctx, *makeRequest(DumpRequest{}, msgproto.TagBcast, ncreply)) {
 		return false
 	}
 	return ProcessRepliesUntilAck(ncreply, b.handleResponse) == nil
@@ -215,7 +218,7 @@ func (b *Bifrost) handleResponse(rs Response) error {
 // This is either the broadcast tag, if rs is a broadcast, or the given tag.
 func bifrostTagOf(rs Response) string {
 	if rs.Broadcast {
-		return bifrost.TagBcast
+		return msgproto.TagBcast
 	}
 	if rs.Origin == nil {
 		panic("non-broadcast response with nil origin")
@@ -232,18 +235,18 @@ func (b *Bifrost) handleAck(t string, r AckResponse) error {
 
 	// SPEC: The wording here is specific.
 	// SPEC: See https://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
-	b.respond(*bifrost.NewMessage(t, bifrost.RsAck).AddArg("OK").AddArg("success"))
+	b.respond(*msgproto.NewMessage(t, msgproto.RsAck).AddArg("OK").AddArg("success"))
 	return nil
 }
 
 // handleRole handles converting a RoleResponse r into messages for tag t.
 func (b *Bifrost) handleRole(t string, r RoleResponse) error {
-	b.respond(*bifrost.NewMessage(t, "IAMA").AddArg(r.Role))
+	b.respond(*msgproto.NewMessage(t, "IAMA").AddArg(r.Role))
 	return nil
 }
 
 // errorToMessage converts the error e to a Bifrost message sent to tag t.
-func errorToMessage(t string, e error) *bifrost.Message {
+func errorToMessage(t string, e error) *msgproto.Message {
 	// TODO(@MattWindsor91): figure out whether e is a WHAT or a FAIL.
-	return bifrost.NewMessage(t, bifrost.RsAck).AddArg("WHAT").AddArg(e.Error())
+	return msgproto.NewMessage(t, msgproto.RsAck).AddArg("WHAT").AddArg(e.Error())
 }

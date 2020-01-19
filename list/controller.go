@@ -5,7 +5,7 @@ package list
 import (
 	"fmt"
 
-	"github.com/UniversityRadioYork/baps3d/comm"
+	"github.com/UniversityRadioYork/baps3d/controller"
 )
 
 // RoleName gives the role name for a List Controller.
@@ -49,7 +49,7 @@ func (l *List) freezeResponse() FreezeResponse {
 }
 
 // Dump handles a dump request.
-func (l *List) Dump(dumpCb comm.ResponseCb) {
+func (l *List) Dump(dumpCb controller.ResponseCb) {
 	// SPEC: see https://universityradioyork.github.io/baps3-spec/protocol/roles/list
 	dumpCb(l.autoModeResponse())
 	dumpCb(l.freezeResponse())
@@ -62,7 +62,7 @@ func (l *List) Dump(dumpCb comm.ResponseCb) {
 //
 
 // HandleRequest handles a request for List l.
-func (l *List) HandleRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, rbody interface{}) error {
+func (l *List) HandleRequest(replyCb controller.ResponseCb, bcastCb controller.ResponseCb, rbody interface{}) error {
 	var err error
 
 	switch b := rbody.(type) {
@@ -80,7 +80,7 @@ func (l *List) HandleRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, r
 }
 
 // handleAutoModeRequest handles an automode change request for List l.
-func (l *List) handleAutoModeRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, b SetAutoModeRequest) error {
+func (l *List) handleAutoModeRequest(replyCb controller.ResponseCb, bcastCb controller.ResponseCb, b SetAutoModeRequest) error {
 	if l.SetAutoMode(b.AutoMode) {
 		bcastCb(l.autoModeResponse())
 	}
@@ -90,7 +90,7 @@ func (l *List) handleAutoModeRequest(replyCb comm.ResponseCb, bcastCb comm.Respo
 }
 
 // handleSelectRequest handles a selection change request for List l.
-func (l *List) handleSelectRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, b SetSelectRequest) error {
+func (l *List) handleSelectRequest(replyCb controller.ResponseCb, bcastCb controller.ResponseCb, b SetSelectRequest) error {
 	changed, err := l.Select(b.Index, b.Hash)
 	if err != nil && changed {
 		bcastCb(l.selectResponse())
@@ -100,7 +100,7 @@ func (l *List) handleSelectRequest(replyCb comm.ResponseCb, bcastCb comm.Respons
 }
 
 // handleAddItemRequest handles an item add request for List l.
-func (l *List) handleAddItemRequest(replyCb comm.ResponseCb, bcastCb comm.ResponseCb, b AddItemRequest) error {
+func (l *List) handleAddItemRequest(replyCb controller.ResponseCb, bcastCb controller.ResponseCb, b AddItemRequest) error {
 	err := l.Add(&b.Item, b.Index)
 	if err == nil {
 		bcastCb(ItemResponse(b))

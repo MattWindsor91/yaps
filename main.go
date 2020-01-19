@@ -11,8 +11,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/UniversityRadioYork/baps3d/comm"
 	"github.com/UniversityRadioYork/baps3d/console"
+	"github.com/UniversityRadioYork/baps3d/controller"
 	"github.com/UniversityRadioYork/baps3d/list"
 	"github.com/UniversityRadioYork/baps3d/netsrv"
 )
@@ -28,7 +28,7 @@ func makeLog(section string, enabled bool) *log.Logger {
 	return log.New(lw, "["+section+"] ", log.LstdFlags)
 }
 
-func runNet(ctx context.Context, rootClient *comm.Client, ncfg config.Net) error {
+func runNet(ctx context.Context, rootClient *controller.Client, ncfg config.Net) error {
 	netClient, err := rootClient.Copy(ctx)
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func runNet(ctx context.Context, rootClient *comm.Client, ncfg config.Net) error
 	return nil
 }
 
-func runConsole(ctx context.Context, rootClient *comm.Client, ccfg config.Console) error {
+func runConsole(ctx context.Context, rootClient *controller.Client, ccfg config.Console) error {
 	consoleClient, err := rootClient.Copy(ctx)
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func main() {
 	// lstConf := conf.Lists[0]
 
 	lst := list.New()
-	lstCon, rootClient := comm.NewController(lst)
+	lstCon, rootClient := controller.NewController(lst)
 	errg.Go(func() error {
 		lstCon.Run(ctx)
 		rootLog.Println("list controller closing")
@@ -116,7 +116,7 @@ func main() {
 	rootLog.Println("It's now safe to turn off your baps3d.")
 }
 
-func mainLoop(rootClient *comm.Client, interrupt chan os.Signal, ctx context.Context, rootLog *log.Logger) {
+func mainLoop(rootClient *controller.Client, interrupt chan os.Signal, ctx context.Context, rootLog *log.Logger) {
 	running := true
 	for running {
 		select {

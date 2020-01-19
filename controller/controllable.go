@@ -1,4 +1,4 @@
-package comm
+package controller
 
 // File controllable.go contains Controllable, an interface for inner Controller states.
 

@@ -1,6 +1,9 @@
 package bifrost
 
-import "context"
+import (
+	"context"
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
+)
 
 // File bifrost/endpoint.go describes clients that communicate at the level of Bifrost messages.
 
@@ -10,10 +13,10 @@ import "context"
 // Endpoint contains the opposite end of a Client's channels.
 type Endpoint struct {
 	// Rx is the channel for receiving messages intended for the endpoint.
-	Rx <-chan Message
+	Rx <-chan msgproto.Message
 
 	// Tx is the channel for transmitting messages from the endpoint.
-	Tx chan<- Message
+	Tx chan<- msgproto.Message
 }
 
 // Send tries to send a request on an Endpoint, modulo a context.
@@ -21,7 +24,7 @@ type Endpoint struct {
 //
 // Send is just sugar over a Select between Tx and ctx.Done(), and it is
 // ok to do this manually using the channels themselves.
-func (e *Endpoint) Send(ctx context.Context, r Message) bool {
+func (e *Endpoint) Send(ctx context.Context, r msgproto.Message) bool {
 	select {
 	case <-ctx.Done():
 		return false
@@ -32,8 +35,8 @@ func (e *Endpoint) Send(ctx context.Context, r Message) bool {
 
 // NewEndpointPair creates a pair of Bifrost client channel sets.
 func NewEndpointPair() (*Endpoint, *Endpoint) {
-	res := make(chan Message)
-	req := make(chan Message)
+	res := make(chan msgproto.Message)
+	req := make(chan msgproto.Message)
 
 	left := Endpoint{
 		Rx: res,

@@ -5,11 +5,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"strings"
 	"sync"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
-	"github.com/UniversityRadioYork/baps3d/comm"
+	"github.com/UniversityRadioYork/baps3d/controller"
 	"github.com/chzyer/readline"
 	"github.com/satori/go.uuid"
 )
@@ -27,10 +28,10 @@ const (
 
 // Console provides a readline-style console for sending Bifrost messages to a controller.
 type Console struct {
-	client  *comm.Client
-	bf      *comm.Bifrost
+	client  *controller.Client
+	bf      *controller.Bifrost
 	bclient *bifrost.Endpoint
-	tok     *bifrost.Tokeniser
+	tok     *msgproto.Tokeniser
 	rl      *readline.Instance
 	txrun   bool
 }
@@ -38,7 +39,7 @@ type Console struct {
 // New creates a new Console.
 // This can fail if the underlying console library fails, or if the Client
 // doesn't support Bifrost.
-func New(ctx context.Context, client *comm.Client) (*Console, error) {
+func New(ctx context.Context, client *controller.Client) (*Console, error) {
 	rl, err := readline.New(promptNormal)
 	if err != nil {
 		return nil, err
@@ -53,7 +54,7 @@ func New(ctx context.Context, client *comm.Client) (*Console, error) {
 		client:  client,
 		bf:      bf,
 		bclient: bfc,
-		tok:     bifrost.NewTokeniser(),
+		tok:     msgproto.NewTokeniser(),
 		rl:      rl,
 	}, nil
 }
@@ -208,7 +209,7 @@ func gentag() (string, error) {
 }
 
 func (c *Console) txLine(ctx context.Context, line []string) (bool, error) {
-	msg, merr := bifrost.LineToMessage(line)
+	msg, merr := msgproto.LineToMessage(line)
 	if merr != nil {
 		return true, merr
 	}

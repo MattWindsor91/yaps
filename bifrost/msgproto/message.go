@@ -1,4 +1,4 @@
-package bifrost
+package msgproto
 
 import (
 	"bytes"
@@ -22,9 +22,6 @@ const (
 
 	// RsAck denotes a message with the 'ACK' response.
 	RsAck string = "ACK"
-
-	// RsOhai denotes a message with the 'OHAI' response.
-	RsOhai string = "OHAI"
 )
 
 // Message is a structure representing a full BAPS3 message.

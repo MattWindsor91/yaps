@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"io"
 	"strings"
 	"sync"
@@ -21,11 +22,11 @@ func TestIoClient_Run_Tx(t *testing.T) {
 
 	cases := []struct {
 		input    string
-		expected *Message
+		expected *msgproto.Message
 	}{
-		{"! IAMA saucepan", NewMessage("!", "IAMA").AddArg("saucepan")},
-		{"f00f STOP 'hammer time'", NewMessage("f00f", "STOP").AddArg("hammer time")},
-		{"? foobar 'qu'u'x' 'x'y'z'z'y'", NewMessage("?", "foobar").AddArg("quux").AddArg("xyzzy")},
+		{"! IAMA saucepan", msgproto.NewMessage("!", "IAMA").AddArg("saucepan")},
+		{"f00f STOP 'hammer time'", msgproto.NewMessage("f00f", "STOP").AddArg("hammer time")},
+		{"? foobar 'qu'u'x' 'x'y'z'z'y'", msgproto.NewMessage("?", "foobar").AddArg("quux").AddArg("xyzzy")},
 	}
 
 	for _, c := range cases {
@@ -34,7 +35,7 @@ func TestIoClient_Run_Tx(t *testing.T) {
 		}
 
 		m := <-endp.Rx
-		AssertMessagesEqual(t, c.expected, &m)
+		msgproto.AssertMessagesEqual(t, c.expected, &m)
 	}
 
 	if err := tcp.Close(); err != nil {
@@ -51,12 +52,12 @@ func TestIoClient_Run_Rx(t *testing.T) {
 	rd := bufio.NewReader(tcp)
 
 	cases := []struct {
-		input    *Message
+		input    *msgproto.Message
 		expected string
 	}{
-		{NewMessage("!", "IAMA").AddArg("chest of drawers"), "! IAMA 'chest of drawers'"},
-		{NewMessage("?", "make").AddArg("me").AddArg("a 'sandwich'"), `? make me 'a '\''sandwich'\'''`},
-		{NewMessage("i386", "blorf"), "i386 blorf"},
+		{msgproto.NewMessage("!", "IAMA").AddArg("chest of drawers"), "! IAMA 'chest of drawers'"},
+		{msgproto.NewMessage("?", "make").AddArg("me").AddArg("a 'sandwich'"), `? make me 'a '\''sandwich'\'''`},
+		{msgproto.NewMessage("i386", "blorf"), "i386 blorf"},
 	}
 
 	// Send all in one block, and later receive all in one block, to make it easier to handle any IoClient errors.

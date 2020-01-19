@@ -1,6 +1,8 @@
-package bifrost
+package msgproto
 
-import "testing"
+import (
+	"testing"
+)
 import "reflect"
 
 func TestMessage_WordAndTag(t *testing.T) {
@@ -31,7 +33,7 @@ func TestMessage_WordAndTag(t *testing.T) {
 		// Response with one argument
 		{
 			[]string{"!", "OHAI", "playd 1.0.0"},
-			NewMessage(TagBcast, RsOhai).AddArg("playd 1.0.0"),
+			NewMessage(TagBcast, "OHAI").AddArg("playd 1.0.0"),
 		},
 		// Response with multiple argument
 		{
@@ -108,12 +110,12 @@ func TestPack(t *testing.T) {
 		},
 		// Single quotes
 		{
-			&Message{TagBcast, RsOhai, []string{"a'bar'b"}},
+			&Message{TagBcast, "OHAI", []string{"a'bar'b"}},
 			[]byte(`! OHAI 'a'\''bar'\''b'` + "\n"),
 		},
 		// Double quotes
 		{
-			&Message{TagBcast, RsOhai, []string{`a"bar"b`}},
+			&Message{TagBcast, "OHAI", []string{`a"bar"b`}},
 			[]byte(`! OHAI 'a"bar"b'` + "\n"),
 		},
 	}
@@ -132,23 +134,3 @@ func TestPack(t *testing.T) {
 /*
 Helper functions for messages
 */
-
-// AssertMessagesEqual checks whether two messages (expected and actual) are equal up to packed representation.
-// It throws a test failure if not, or if either message fails to pack
-func AssertMessagesEqual(t *testing.T, expected, actual *Message) {
-	var (
-		ep, ap []byte
-		err    error
-	)
-	if ep, err = expected.Pack(); err != nil {
-		t.Errorf("expected message failed to pack: %v", err)
-		return
-	}
-	if ap, err = actual.Pack(); err != nil {
-		t.Errorf("actual message failed to pack: %v", err)
-		return
-	}
-	if !reflect.DeepEqual(ep, ap) {
-		t.Errorf("expected message %s, got %s", string(ep), string(ap))
-	}
-}

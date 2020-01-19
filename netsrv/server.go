@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/UniversityRadioYork/baps3d/comm"
+	"github.com/UniversityRadioYork/baps3d/controller"
 )
 
 // Server holds the internal state of a baps3d TCP server.
@@ -20,7 +20,7 @@ type Server struct {
 
 	// rootClient is a controller Client the Server can clone for
 	// use by incoming connections.
-	rootClient *comm.Client
+	rootClient *controller.Client
 
 	// clients is a map containing all connected clients.
 	clients map[Client]struct{}
@@ -55,7 +55,7 @@ type Server struct {
 }
 
 // New creates a new network server for a baps3d instance.
-func New(l *log.Logger, host string, rc *comm.Client) *Server {
+func New(l *log.Logger, host string, rc *controller.Client) *Server {
 	return &Server{
 		log:          l,
 		host:         host,

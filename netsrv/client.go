@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
-	"github.com/UniversityRadioYork/baps3d/comm"
+	"github.com/UniversityRadioYork/baps3d/controller"
 )
 
 // Client holds the server-side state of a baps3d Bifrost client.
@@ -20,7 +20,7 @@ type Client struct {
 
 	// conClient is the client's Client for the Controller for this
 	// server.
-	conClient *comm.Client
+	conClient *controller.Client
 
 	// ioClient is the underlying Bifrost-level client.
 	ioClient *bifrost.IoClient
@@ -34,7 +34,7 @@ func (c *Client) Close() error {
 
 // Run spins up the client's receiver and transmitter loops.
 // It takes the server context, the client's Bifrost adapter, and the server's client hangup channel.
-func (c *Client) Run(ctx context.Context, bf *comm.Bifrost, hangUp chan<- *Client) {
+func (c *Client) Run(ctx context.Context, bf *controller.Bifrost, hangUp chan<- *Client) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 

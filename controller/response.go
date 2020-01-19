@@ -1,4 +1,4 @@
-package comm
+package controller
 
 import "github.com/UniversityRadioYork/baps3d/bifrost"
 

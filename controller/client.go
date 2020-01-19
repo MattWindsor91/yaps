@@ -1,4 +1,4 @@
-package comm
+package controller
 
 // This file defines Client, a struct of channels representing a connection to a
 // Controller, and related internal types.

@@ -1,5 +1,7 @@
 package bifrost
 
+import "github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
+
 // File bifrost/parser contains the bifrost.Parser interface.
 
 // Parser is the interface of types containing Bifrost parser and emitter functionality.
@@ -9,5 +11,5 @@ type Parser interface {
 	ParseBifrostRequest(word string, args []string) (interface{}, error)
 
 	// EmitBifrostResponse converts resp into a Bifrost message with the given tag, and sends it through out.
-	EmitBifrostResponse(tag string, resp interface{}, out chan<- Message) error
+	EmitBifrostResponse(tag string, resp interface{}, out chan<- msgproto.Message) error
 }
