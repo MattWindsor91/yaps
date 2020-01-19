@@ -34,11 +34,7 @@ func TestIoClient_Run_Tx(t *testing.T) {
 		}
 
 		m := <-endp.Rx
-		mp := strings.TrimSpace(m.String())
-		ep := strings.TrimSpace(c.expected.String())
-		if mp != ep {
-			t.Errorf("expected message [%s], got message [%s]", ep, mp)
-		}
+		AssertMessagesEqual(t, c.expected, &m)
 	}
 
 	if err := tcp.Close(); err != nil {
@@ -105,7 +101,7 @@ func runMockIoClient(t *testing.T, ctx context.Context, wg *sync.WaitGroup) (*En
 	go func() {
 		for e := range errCh {
 			if errors.Is(e, HungUpError) {
-				bfe.Close()
+				close(bfe.Tx)
 			} else if !errors.Is(e, io.EOF) {
 				t.Errorf("ioclient error: %v", e)
 			}

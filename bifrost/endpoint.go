@@ -16,11 +16,6 @@ type Endpoint struct {
 	Tx chan<- Message
 }
 
-// Close closes all of c's transmission channels.
-func (e *Endpoint) Close() {
-	close(e.Tx)
-}
-
 // Send tries to send a request on an Endpoint, modulo a context.
 // It returns false if the given context has been cancelled.
 //

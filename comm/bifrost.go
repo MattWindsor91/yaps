@@ -61,7 +61,7 @@ func (b *Bifrost) respond(m bifrost.Message) {
 }
 
 func (b *Bifrost) close() {
-	b.bifrost.Close()
+	close(b.bifrost.Tx)
 }
 
 // Run runs the main body of the Bifrost adapter.
