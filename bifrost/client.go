@@ -1,5 +1,7 @@
 package bifrost
 
+import "context"
+
 // File bifrost/client.go describes clients that communicate at the level of Bifrost messages.
 
 // Note: we use the Client and Endpoint structs in both sides of a client/server communication,
@@ -12,19 +14,17 @@ type Client struct {
 
 	// Rx is the channel for receiving messages from the endpoint.
 	Rx <-chan Message
-
-	// Done is a channel that is closed when the endpoint has shut down.
-	Done <-chan struct{}
 }
 
-// Send tries to send a request on a BifrostClient.
-// It returns false if the BifrostClient's upstream has shut down.
+// Send tries to send a request on a Client.
+// It returns false if the Client's Endpoint or parent has signalled cancellation.
 //
-// Send is just sugar over a Select between Tx and Done, and it is
+// Send is just sugar over a Select between Tx and Context.Done(), and it is
 // ok to do this manually using the channels themselves.
-func (c *Client) Send(r Message) bool {
+func (c *Client) Send(ctx context.Context, r Message) bool {
+	done := ctx.Done()
 	select {
-	case <-c.Done:
+	case <-done:
 		return false
 	case c.Tx <- r:
 	}
@@ -38,33 +38,26 @@ type Endpoint struct {
 
 	// Tx is the channel for transmitting messages from the endpoint.
 	Tx chan<- Message
-
-	// Done is a channel to be closed when the endpoint wants to shut down.
-	Done chan<- struct{}
 }
 
 // Close closes all of c's transmission channels.
 func (c *Endpoint) Close() {
 	close(c.Tx)
-	close(c.Done)
 }
 
 // NewClient creates a pair of Bifrost client channel sets.
 func NewClient() (*Client, *Endpoint) {
 	res := make(chan Message)
 	req := make(chan Message)
-	done := make(chan struct{})
 
 	client := Client{
-		Rx:   res,
-		Tx:   req,
-		Done: done,
+		Rx:      res,
+		Tx:      req,
 	}
 
 	endpoint := Endpoint{
-		Tx:   res,
-		Rx:   req,
-		Done: done,
+		Tx:     res,
+		Rx:     req,
 	}
 
 	return &client, &endpoint

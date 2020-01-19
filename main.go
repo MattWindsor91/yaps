@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/UniversityRadioYork/baps3d/config"
 	"io"
 	"io/ioutil"
@@ -26,32 +27,34 @@ func makeLog(section string, enabled bool) *log.Logger {
 	return log.New(lw, "["+section+"] ", log.LstdFlags)
 }
 
-func runNet(rootClient *comm.Client, ncfg config.Net) error {
-	netClient, err := rootClient.Copy()
+func runNet(ctx context.Context, rootClient *comm.Client, ncfg config.Net) error {
+	netClient, err := rootClient.Copy(ctx)
 	if err != nil {
 		return err
 	}
 
 	netLog := makeLog("net", ncfg.Log)
 	netSrv := netsrv.New(netLog, ncfg.Host, netClient)
-	netSrv.Run()
+	netSrv.Run(ctx)
 	return nil
 }
 
-func runConsole(rootClient *comm.Client, ccfg config.Console) error {
-	consoleClient, err := rootClient.Copy()
+func runConsole(ctx context.Context, rootClient *comm.Client, ccfg config.Console) error {
+	consoleClient, err := rootClient.Copy(ctx)
 	if err != nil {
 		return err
 	}
 
-	console, err := console.New(consoleClient)
+	console, err := console.New(ctx, consoleClient)
 	if err != nil {
 		return err
 	}
-	return console.Run()
+	return console.Run(ctx)
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	rootLog := makeLog("root", true)
 
 	cfile := "baps3d.toml"
@@ -76,7 +79,8 @@ func main() {
 	lstCon, rootClient := comm.NewController(lst)
 	wg.Add(1)
 	go func() {
-		lstCon.Run()
+		lstCon.Run(ctx)
+		cancel()
 		rootLog.Println("list controller closing")
 		wg.Done()
 	}()
@@ -84,7 +88,7 @@ func main() {
 	if conf.Net.Enabled {
 		wg.Add(1)
 		go func() {
-			if err := runNet(rootClient, conf.Net); err != nil {
+			if err := runNet(ctx, rootClient, conf.Net); err != nil {
 				rootLog.Println("netsrv error:", err)
 			}
 			rootLog.Println("netsrv closing")
@@ -95,7 +99,7 @@ func main() {
 	if conf.Console.Enabled {
 		wg.Add(1)
 		go func() {
-			if err := runConsole(rootClient, conf.Console); err != nil {
+			if err := runConsole(ctx, rootClient, conf.Console); err != nil {
 				rootLog.Println("console error:", err)
 			}
 			rootLog.Println("console closing")
@@ -111,7 +115,7 @@ func main() {
 			// Start closing baps3d if the client has closed.
 		case <-interrupt:
 			// Ctrl-C, so gracefully shut down.
-			if err := rootClient.Shutdown(); err != nil {
+			if err := rootClient.Shutdown(ctx); err != nil {
 				rootLog.Println("couldn't shut down gracefully:", err)
 			}
 		}

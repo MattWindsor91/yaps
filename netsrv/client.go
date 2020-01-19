@@ -1,6 +1,7 @@
 package netsrv
 
 import (
+	"context"
 	"errors"
 	"log"
 	"sync"
@@ -32,15 +33,15 @@ func (c *Client) Close() error {
 }
 
 // Run spins up the client's receiver and transmitter loops.
-// It takes the client's Bifrost adapter, and the server's client hangup channel.
-func (c *Client) Run(bf *comm.Bifrost, hangUp chan<- *Client) {
+// It takes the server context, the client's Bifrost adapter, and the server's client hangup channel.
+func (c *Client) Run(ctx context.Context, bf *comm.Bifrost, hangUp chan<- *Client) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
 	errCh := make(chan error)
 
 	go func() {
-		c.ioClient.Run(errCh)
+		c.ioClient.Run(ctx, errCh)
 		wg.Done()
 	}()
 
@@ -50,7 +51,7 @@ func (c *Client) Run(bf *comm.Bifrost, hangUp chan<- *Client) {
 	}()
 
 	go func() {
-		bf.Run()
+		bf.Run(ctx)
 		wg.Done()
 	}()
 

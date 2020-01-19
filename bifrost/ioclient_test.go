@@ -2,6 +2,7 @@ package bifrost
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,7 @@ import (
 // connection and seeing whether they come through the Bifrost RX channel as properly parsed messages.
 func TestIoClient_Run_Tx(t *testing.T) {
 	var wg sync.WaitGroup
-	endp, tcp := runMockIoClient(t, &wg)
+	endp, tcp := runMockIoClient(t, context.Background(), &wg)
 
 	cases := []struct {
 		input    string
@@ -50,7 +51,7 @@ func TestIoClient_Run_Tx(t *testing.T) {
 // making sure the resulting traffic through an attached mock TCP connection matches up.
 func TestIoClient_Run_Rx(t *testing.T) {
 	var wg sync.WaitGroup
-	endp, tcp := runMockIoClient(t, &wg)
+	endp, tcp := runMockIoClient(t, context.Background(), &wg)
 	rd := bufio.NewReader(tcp)
 
 	cases := []struct {
@@ -90,7 +91,7 @@ func TestIoClient_Run_Rx(t *testing.T) {
 // runMockIoClient makes and sets-running an IoClient with a simulated TCP connection.
 // It returns an Endpoint and io.ReadWriteCloser that can be used to manipulate both ends of the mock connection.
 // It also sets up a goroutine for tracking errors from the IoClient.
-func runMockIoClient(t *testing.T, wg *sync.WaitGroup) (*Endpoint, io.ReadWriteCloser) {
+func runMockIoClient(t *testing.T, ctx context.Context, wg *sync.WaitGroup) (*Endpoint, io.ReadWriteCloser) {
 	t.Helper()
 
 	wg.Add(2)
@@ -100,7 +101,7 @@ func runMockIoClient(t *testing.T, wg *sync.WaitGroup) (*Endpoint, io.ReadWriteC
 	errCh := make(chan error)
 
 	go func() {
-		ic.Run(errCh)
+		ic.Run(ctx, errCh)
 		wg.Done()
 	}()
 	go func() {

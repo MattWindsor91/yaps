@@ -1,6 +1,7 @@
 package netsrv
 
 import (
+	"context"
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"log"
 	"net"
@@ -68,25 +69,25 @@ func New(l *log.Logger, host string, rc *comm.Client) *Server {
 	}
 }
 
-func (s *Server) shutdownController() {
+func (s *Server) shutdownController(ctx context.Context) {
 	s.log.Println("shutting down")
-	if err := s.rootClient.Shutdown(); err != nil {
+	if err := s.rootClient.Shutdown(ctx); err != nil {
 		s.log.Println("couldn't shut down gracefully:", err)
 	}
 }
 
 // newConnection sets up the server s to handle incoming connection c.
 // It does not close c on error.
-func (s *Server) newConnection(c net.Conn) error {
+func (s *Server) newConnection(ctx context.Context, c net.Conn) error {
 	cname := c.RemoteAddr().String()
 	s.log.Println("new connection:", cname)
 
-	conClient, err := s.rootClient.Copy()
+	conClient, err := s.rootClient.Copy(ctx)
 	if err != nil {
 		return err
 	}
 
-	conBifrost, conBifrostClient, err := conClient.Bifrost()
+	conBifrost, conBifrostClient, err := conClient.Bifrost(ctx)
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (s *Server) newConnection(c net.Conn) error {
 
 	s.wg.Add(1)
 	go func() {
-		cli.Run(conBifrost, s.clientHangUp)
+		cli.Run(ctx, conBifrost, s.clientHangUp)
 		s.wg.Done()
 	}()
 
@@ -132,9 +133,9 @@ func (s *Server) hangUpClient(c *Client) {
 }
 
 // Run prepares and runs the net server main loop.
-func (s *Server) Run() {
+func (s *Server) Run(ctx context.Context) {
 	defer s.wg.Wait()
-	defer s.shutdownController()
+	defer s.shutdownController(ctx)
 
 	ln, err := net.Listen("tcp", s.host)
 	if err != nil {
@@ -149,7 +150,7 @@ func (s *Server) Run() {
 		s.wg.Done()
 	}()
 
-	s.mainLoop()
+	s.mainLoop(ctx)
 
 	close(s.done)
 	s.hangUpAllClients()
@@ -160,7 +161,8 @@ func (s *Server) Run() {
 }
 
 // mainLoop is the server's main connection handling loop.
-func (s *Server) mainLoop() {
+func (s *Server) mainLoop(ctx context.Context) {
+	done := ctx.Done()
 	for {
 		select {
 		case err := <-s.accErr:
@@ -168,7 +170,7 @@ func (s *Server) mainLoop() {
 			return
 		case conn := <-s.accConn:
 			cname := conn.RemoteAddr().String()
-			if err := s.newConnection(conn); err != nil {
+			if err := s.newConnection(ctx, conn); err != nil {
 				s.log.Printf("error registering connection %s: %s\n", cname, err.Error())
 				if cerr := conn.Close(); err != nil {
 					s.log.Printf("further error closing connection %s: %s\n", cname, cerr.Error())
@@ -178,7 +180,7 @@ func (s *Server) mainLoop() {
 			s.hangUpClient(c)
 		case <-s.rootClient.Rx:
 			// Drain any messages sent to the root client.
-		case <-s.rootClient.Done:
+		case <-done:
 			s.log.Println("received controller shutdown")
 			return
 		}

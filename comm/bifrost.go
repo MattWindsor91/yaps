@@ -3,6 +3,7 @@ package comm
 // File comm/bifrost.go provides types and functions for creating bridges between Controllers and the Bifrost protocol.
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
@@ -66,10 +67,10 @@ func (b *Bifrost) close() {
 
 // Run runs the main body of the Bifrost adapter.
 // It will immediately send the new client responses to the response channel.
-func (b *Bifrost) Run() {
+func (b *Bifrost) Run(ctx context.Context) {
 	defer b.close()
 
-	if !b.handleNewClientResponses() {
+	if !b.handleNewClientResponses(ctx) {
 		return
 	}
 
@@ -81,7 +82,7 @@ func (b *Bifrost) Run() {
 
 		select {
 		case rq, ok := <-b.bifrost.Rx:
-			if !ok || !b.handleRequest(rq) {
+			if !ok || !b.handleRequest(ctx, rq) {
 				return
 			}
 		case rs := <-b.reply:
@@ -105,14 +106,14 @@ func (b *Bifrost) Run() {
 // handleRequest handles the request message rq.
 // It returns whether or not the client is still able to handle
 // requests.
-func (b *Bifrost) handleRequest(rq bifrost.Message) bool {
+func (b *Bifrost) handleRequest(ctx context.Context, rq bifrost.Message) bool {
 	request, err := b.fromMessage(rq)
 	if err != nil {
 		b.respond(*errorToMessage(rq.Tag(), err))
 		return true
 	}
 
-	return b.client.Send(*request)
+	return b.client.Send(ctx, *request)
 }
 
 // fromMessage tries to parse a message as a controller request.
@@ -168,8 +169,8 @@ func parseDumpMessage(args []string) (interface{}, error) {
 //
 
 // handleNewClientResponses handles the new client responses (OHAI, IAMA, etc).
-// It returns true if the client hasn't hung up midway through.
-func (b *Bifrost) handleNewClientResponses() bool {
+// It returns true if the client context hasn't hung up midway through.
+func (b *Bifrost) handleNewClientResponses(ctx context.Context) bool {
 	// SPEC: see http://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
 
 	// OHAI is a Bifrost-ism, so we don't bother asking the Client about it
@@ -177,13 +178,13 @@ func (b *Bifrost) handleNewClientResponses() bool {
 
 	// We don't use b.reply here, because we want to suppress ACK.
 	ncreply := make(chan Response)
-	if !b.client.Send(*makeRequest(RoleRequest{}, bifrost.TagBcast, ncreply)) {
+	if !b.client.Send(ctx, *makeRequest(RoleRequest{}, bifrost.TagBcast, ncreply)) {
 		return false
 	}
 	if ProcessRepliesUntilAck(ncreply, b.handleResponse) != nil {
 		return false
 	}
-	if !b.client.Send(*makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)) {
+	if !b.client.Send(ctx, *makeRequest(DumpRequest{}, bifrost.TagBcast, ncreply)) {
 		return false
 	}
 	return ProcessRepliesUntilAck(ncreply, b.handleResponse) == nil

@@ -1,6 +1,7 @@
 package bifrost
 
 import (
+	"context"
 	"errors"
 	"io"
 	"sync"
@@ -28,18 +29,18 @@ func (c *IoClient) Close() error {
 // It takes a channel to notify the caller asynchronously of any errors, and a client
 // and the server's client hangup and done channels.
 // It closes errors once both loops are done.
-func (c *IoClient) Run(errCh chan<- error) {
+func (c *IoClient) Run(ctx context.Context, errCh chan<- error) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	go func() {
-		c.runTx(errCh)
-		c.sendError(errCh, HungUpError)
+		c.runTx(ctx, errCh)
+		c.sendError(ctx, errCh, HungUpError)
 		wg.Done()
 	}()
 
 	go func() {
-		c.runRx(errCh)
+		c.runRx(ctx, errCh)
 		wg.Done()
 	}()
 
@@ -49,37 +50,37 @@ func (c *IoClient) Run(errCh chan<- error) {
 
 // runRx runs the client's message receiver loop.
 // This writes messages to the socket.
-func (c *IoClient) runRx(errCh chan<- error) {
+func (c *IoClient) runRx(ctx context.Context, errCh chan<- error) {
 	// We don't have to check c.Bifrost.Done here:
 	// client always drops both Rx and Done when shutting down.
 	for m := range c.Bifrost.Rx {
 		mbytes, err := m.Pack()
 		if err != nil {
-			c.sendError(errCh, err)
+			c.sendError(ctx, errCh, err)
 			continue
 		}
 
 		if _, err := c.Conn.Write(mbytes); err != nil {
-			c.sendError(errCh, err)
+			c.sendError(ctx, errCh, err)
 			break
 		}
 	}
 }
 
 // runTx runs the client's message transmitter loop.
-func (c *IoClient) runTx(errCh chan<- error) {
+func (c *IoClient) runTx(ctx context.Context, errCh chan<- error) {
 	r := NewReaderTokeniser(c.Conn)
 
 	for {
-		if err := c.txLine(r); err != nil {
-			c.sendError(errCh, err)
+		if err := c.txLine(ctx, r); err != nil {
+			c.sendError(ctx, errCh, err)
 			return
 		}
 	}
 }
 
 // txLine transmits a line from the ReaderTokeniser r
-func (c *IoClient) txLine(r *ReaderTokeniser) (err error) {
+func (c *IoClient) txLine(ctx context.Context, r *ReaderTokeniser) (err error) {
 	var line []string
 	if line, err = r.ReadLine(); err != nil {
 		return err
@@ -90,7 +91,7 @@ func (c *IoClient) txLine(r *ReaderTokeniser) (err error) {
 		return err
 	}
 
-	if !c.Bifrost.Send(*msg) {
+	if !c.Bifrost.Send(ctx, *msg) {
 		return errors.New("client died while sending message on %s")
 	}
 
@@ -99,10 +100,11 @@ func (c *IoClient) txLine(r *ReaderTokeniser) (err error) {
 
 // sendError tries to send an error e to the error channel errCh.
 // It silently fails if the underlying Client's Done channel is closed.
-func (c *IoClient) sendError(errCh chan<- error, e error) {
+func (c *IoClient) sendError(ctx context.Context, errCh chan<- error, e error) {
+	done := ctx.Done()
 	select {
 	case errCh<- e:
-	case <-c.Bifrost.Done:
+	case <-done:
 	}
 }
 

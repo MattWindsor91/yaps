@@ -3,6 +3,7 @@ package console
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -37,13 +38,13 @@ type Console struct {
 // New creates a new Console.
 // This can fail if the underlying console library fails, or if the Client
 // doesn't support Bifrost.
-func New(client *comm.Client) (*Console, error) {
+func New(ctx context.Context, client *comm.Client) (*Console, error) {
 	rl, err := readline.New(promptNormal)
 	if err != nil {
 		return nil, err
 	}
 
-	bf, bfc, err := client.Bifrost()
+	bf, bfc, err := client.Bifrost(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (c *Console) Close() error {
 
 // Run spins up the Console goroutines, and waits for them to terminate.
 // It returns any errors returned while closing the Console.
-func (c *Console) Run() error {
+func (c *Console) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	var err error
 
@@ -72,11 +73,11 @@ func (c *Console) Run() error {
 	// we consequently don't add it to the wait group.
 	wg.Add(2)
 	go func() {
-		c.bf.Run()
+		c.bf.Run(ctx)
 		wg.Done()
 	}()
 	go func() {
-		c.runTx()
+		c.runTx(ctx)
 		// See above
 	}()
 	go func() {
@@ -109,7 +110,7 @@ func (c *Console) runRx() {
 
 // runTx runs the Console's message transmitter loop.
 // This reads from stdin.
-func (c *Console) runTx() {
+func (c *Console) runTx(ctx context.Context) {
 	c.txrun = true
 	for c.txrun {
 		string, terr := c.rl.Readline()
@@ -124,7 +125,7 @@ func (c *Console) runTx() {
 		sbuf.WriteString(string)
 		sbuf.WriteRune('\n')
 
-		needMore := c.handleRawLine(sbuf.Bytes())
+		needMore := c.handleRawLine(ctx, sbuf.Bytes())
 		if needMore {
 			c.rl.SetPrompt(promptContinue)
 		} else {
@@ -133,7 +134,7 @@ func (c *Console) runTx() {
 	}
 }
 
-func (c *Console) handleRawLine(bytes []byte) bool {
+func (c *Console) handleRawLine(ctx context.Context, bytes []byte) bool {
 	pos := 0
 	nbytes := len(bytes)
 	for pos < nbytes {
@@ -144,7 +145,7 @@ func (c *Console) handleRawLine(bytes []byte) bool {
 
 		pos += nread
 
-		clientok, err := c.handleLine(line)
+		clientok, err := c.handleLine(ctx, line)
 		// TODO(@MattWindsor91): handle txrun better?
 		c.txrun = c.txrun && clientok
 
@@ -163,16 +164,16 @@ func (c *Console) handleRawLine(bytes []byte) bool {
 //
 // Returns whether the upstream client is still taking messages, and any errors
 // arising from processing the line.
-func (c *Console) handleLine(line []string) (bool, error) {
+func (c *Console) handleLine(ctx context.Context, line []string) (bool, error) {
 	if 0 == len(line) {
 		return true, nil
 	}
 
 	if scword, issc := parseSpecialCommand(line[0]); issc {
-		return c.handleSpecialCommand(scword, line[1:])
+		return c.handleSpecialCommand(ctx, scword, line[1:])
 	}
 
-	return c.handleBifrostLine(line)
+	return c.handleBifrostLine(ctx, line)
 }
 
 // handleBifrostLine interprets a line (word array) as a tagless Bifrost
@@ -181,7 +182,7 @@ func (c *Console) handleLine(line []string) (bool, error) {
 //
 // Returns whether the upstream client is still taking messages, and any errors
 // arising from processing the line.
-func (c *Console) handleBifrostLine(line []string) (bool, error) {
+func (c *Console) handleBifrostLine(ctx context.Context, line []string) (bool, error) {
 	tag, err := gentag()
 	if err != nil {
 		return true, err
@@ -190,7 +191,7 @@ func (c *Console) handleBifrostLine(line []string) (bool, error) {
 	tline := make([]string, len(line)+1)
 	tline[0] = tag
 	copy(tline[1:], line)
-	return c.txLine(tline)
+	return c.txLine(ctx, tline)
 }
 
 // gentag generates a new, (hopefully) unique tag.
@@ -203,38 +204,38 @@ func gentag() (string, error) {
 	return id.String(), nil
 }
 
-func (c *Console) txLine(line []string) (bool, error) {
+func (c *Console) txLine(ctx context.Context, line []string) (bool, error) {
 	msg, merr := bifrost.LineToMessage(line)
 	if merr != nil {
 		return true, merr
 	}
 
-	return c.bclient.Send(*msg), nil
+	return c.bclient.Send(ctx, *msg), nil
 }
 
 // handleSpecialCommand handles special command word scword with arguments args.
 // It returns a Boolean reporting whether the client is still taking messages,
 // and any errors that occur during processing.
-func (c *Console) handleSpecialCommand(scword string, args []string) (bool, error) {
+func (c *Console) handleSpecialCommand(ctx context.Context, scword string, args []string) (bool, error) {
 	switch scword {
 	case "quit":
-		return false, c.handleQuit(args)
+		return false, c.handleQuit(ctx, args)
 	case "tag":
 		// Send message with specific tag
-		return c.txLine(args)
+		return c.txLine(ctx, args)
 	default:
 		return true, fmt.Errorf("unknown sc")
 	}
 }
 
 // handleQuit handles a quit message.
-func (c *Console) handleQuit(args []string) error {
+func (c *Console) handleQuit(ctx context.Context, args []string) error {
 	if 0 != len(args) {
 		return fmt.Errorf("bad arity")
 	}
 
 	c.txrun = false
-	return c.client.Shutdown()
+	return c.client.Shutdown(ctx)
 }
 
 // parseSpecialCommand tries to interpret word as a special command.

@@ -1,6 +1,7 @@
 package comm_test
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
@@ -69,8 +70,10 @@ func (*testStateWithParser) EmitBifrostResponse(string, interface{}, chan<- bifr
 Test helpers
 */
 
-func testWithController(s comm.Controllable, f func(*comm.Client, *testing.T), t *testing.T) {
+func testWithController(s comm.Controllable, f func(context.Context, *comm.Client, *testing.T), t *testing.T) {
 	t.Helper()
+
+	innerCtx, cancel := context.WithCancel(context.Background())
 
 	ctl, client := comm.NewController(s)
 
@@ -78,13 +81,14 @@ func testWithController(s comm.Controllable, f func(*comm.Client, *testing.T), t
 
 	wg.Add(1)
 	go func() {
-		ctl.Run()
+		ctl.Run(innerCtx)
+		cancel()
 		wg.Done()
 	}()
 
-	f(client, t)
+	f(innerCtx, client, t)
 
-	if err := client.Shutdown(); err != nil {
+	if err := client.Shutdown(innerCtx); err != nil {
 		t.Errorf("error shutting client down after test: %s", err.Error())
 	}
 	wg.Wait()
@@ -97,7 +101,7 @@ Test functions
 // TestClient_Send_Reply tests using Client.Send to send a known request with
 // a unicast reply.
 func TestClient_Send_Reply(t *testing.T) {
-	f := func(c *comm.Client, t *testing.T) {
+	f := func(ctx context.Context, c *comm.Client, t *testing.T) {
 		reply := make(chan comm.Response)
 
 		rq := comm.Request{
@@ -105,7 +109,7 @@ func TestClient_Send_Reply(t *testing.T) {
 			Body:   knownDummyRequest{},
 		}
 
-		if !c.Send(rq) {
+		if !c.Send(ctx, rq) {
 			t.Fatal("controller shut down before we could send test request")
 		}
 
@@ -136,8 +140,8 @@ func TestClient_Send_Reply(t *testing.T) {
 // TestClient_Bifrost_NoBifrostParser tests Client.Bifrost's behaviour when its
 // parent Controller's inner state doesn't understand Bifrost.
 func TestClient_Bifrost_NoBifrostParser(t *testing.T) {
-	f := func(cli *comm.Client, t *testing.T) {
-		bf, bfc, err := cli.Bifrost()
+	f := func(ctx context.Context, cli *comm.Client, t *testing.T) {
+		bf, bfc, err := cli.Bifrost(ctx)
 		if err == nil {
 			t.Errorf("expected an error")
 		}
@@ -159,8 +163,8 @@ func TestClient_Bifrost_NoBifrostParser(t *testing.T) {
 // TestClient_Bifrost_BifrostParser tests Client.Bifrost's behaviour when its
 // parent Controller's inner state understands Bifrost.
 func TestClient_Bifrost_BifrostParser(t *testing.T) {
-	f := func(cli *comm.Client, t *testing.T) {
-		bf, bfc, err := cli.Bifrost()
+	f := func(ctx context.Context, cli *comm.Client, t *testing.T) {
+		bf, bfc, err := cli.Bifrost(ctx)
 		if err != nil {
 			t.Errorf("got unexpected error: %s", err.Error())
 		}
@@ -178,15 +182,15 @@ func TestClient_Bifrost_BifrostParser(t *testing.T) {
 
 // TestClient_Shutdown tests Client.Shutdown's behaviour.
 func TestClient_Shutdown(t *testing.T) {
-	f := func(c *comm.Client, t *testing.T) {
-		if err := c.Shutdown(); err != nil {
+	f := func(ctx context.Context, c *comm.Client, t *testing.T) {
+		if err := c.Shutdown(ctx); err != nil {
 			t.Fatalf("unexpected error on first shutdown: %s", err.Error())
 		}
 		// Sends should terminate but fail.
 		// This test isn't robust: it could be that broken implementations of
 		// Shutdown doesn't always fail to shut down before returning.
 		reply := make(chan comm.Response)
-		if c.Send(comm.Request{
+		if c.Send(ctx, comm.Request{
 			Origin: comm.RequestOrigin{
 				Tag:     "",
 				ReplyTx: reply,
@@ -196,7 +200,7 @@ func TestClient_Shutdown(t *testing.T) {
 			t.Error("send to shut-down Client erroneously succeeded")
 		}
 		// Double shutdowns shouldn't trip errors or diverge.
-		if err := c.Shutdown(); err != nil {
+		if err := c.Shutdown(ctx); err != nil {
 			t.Errorf("unexpected error on second shutdown: %s", err.Error())
 		}
 	}
@@ -206,19 +210,19 @@ func TestClient_Shutdown(t *testing.T) {
 // TestClient_CopyBeforeShutdown tests what happens when we shutdown a
 // controller with a copied client.
 func TestClient_CopyBeforeShutdown(t *testing.T) {
-	f := func(c *comm.Client, t *testing.T) {
-		c2, err := c.Copy()
+	f := func(ctx context.Context, c *comm.Client, t *testing.T) {
+		c2, err := c.Copy(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error on copy: %s", err.Error())
 		}
 
-		if err := c.Shutdown(); err != nil {
+		if err := c.Shutdown(ctx); err != nil {
 			t.Fatalf("unexpected error on original shutdown: %s", err.Error())
 		}
 
 		// The second client shouldn't be taking requests.
 		reply := make(chan comm.Response)
-		if c2.Send(comm.Request{
+		if c2.Send(ctx, comm.Request{
 			Origin: comm.RequestOrigin{
 				Tag:     "",
 				ReplyTx: reply,
@@ -229,7 +233,7 @@ func TestClient_CopyBeforeShutdown(t *testing.T) {
 		}
 
 		// The second client shouldn't error on a second shutdown.
-		if err := c2.Shutdown(); err != nil {
+		if err := c2.Shutdown(ctx); err != nil {
 			t.Fatalf("unexpected error on copy shutdown: %s", err.Error())
 		}
 	}
@@ -238,11 +242,11 @@ func TestClient_CopyBeforeShutdown(t *testing.T) {
 
 // TestClient_CopyAfterShutdown tests Client.Copy's behaviour on a shut-down client.
 func TestClient_CopyAfterShutdown(t *testing.T) {
-	f := func(c *comm.Client, t *testing.T) {
-		if err := c.Shutdown(); err != nil {
+	f := func(ctx context.Context, c *comm.Client, t *testing.T) {
+		if err := c.Shutdown(ctx); err != nil {
 			t.Fatalf("unexpected error on shutdown: %s", err.Error())
 		}
-		c2, err := c.Copy()
+		c2, err := c.Copy(ctx)
 		if err == nil {
 			t.Fatalf("didn't get error when Copying on a shutdown controller")
 		}

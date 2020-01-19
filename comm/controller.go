@@ -4,6 +4,7 @@ package comm
 // The baps3d state must satisfy the 'Controllable' interface.
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/UniversityRadioYork/baps3d/bifrost"
@@ -77,7 +78,7 @@ func NewController(c Controllable) (*Controller, *Client) {
 }
 
 // Run runs this Controller's event loop.
-func (c *Controller) Run() {
+func (c *Controller) Run(ctx context.Context) {
 	c.running = true
 	for c.running {
 		i, value, open := reflect.Select(c.cselects)
@@ -88,7 +89,7 @@ func (c *Controller) Run() {
 				panic("FIXME: got bad request")
 			}
 
-			c.handleRequest(rq)
+			c.handleRequest(ctx, rq)
 		} else {
 			c.hangUpClientWithCase(i)
 		}
@@ -135,7 +136,7 @@ func (c *Controller) hangUpClient(cl coclient) {
 // handleRequest handles a Request rq.
 // If the request is a standard Request, the Controller will handle it itself.
 // Otherwise, the Controller forwards it to the Controllable.
-func (c *Controller) handleRequest(rq Request) {
+func (c *Controller) handleRequest(ctx context.Context, rq Request) {
 	var err error
 
 	o := rq.Origin
@@ -143,7 +144,7 @@ func (c *Controller) handleRequest(rq Request) {
 	case RoleRequest:
 		err = c.handleRoleRequest(o, body)
 	case OnRequest:
-		err = c.handleOnRequest(o, body)
+		err = c.handleOnRequest(ctx, o, body)
 	case DumpRequest:
 		err = c.handleDumpRequest(o, body)
 	case newClientRequest:
@@ -184,12 +185,12 @@ func (c *Controller) handleNewClientRequest(o RequestOrigin, b newClientRequest)
 }
 
 // handleOnRequest handles an 'on' request with origin o and body b.
-func (c *Controller) handleOnRequest(o RequestOrigin, b OnRequest) error {
+func (c *Controller) handleOnRequest(ctx context.Context, o RequestOrigin, b OnRequest) error {
 	m, ok := c.mounts[b.MountPoint]
 	if !ok {
 		return fmt.Errorf("no such mount point: %s", b.MountPoint)
 	}
-	if !m.Send(b.Request) {
+	if !m.Send(ctx, b.Request) {
 		return fmt.Errorf("couldn't send to mount point: %s", b.MountPoint)
 	}
 	return nil

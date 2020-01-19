@@ -4,6 +4,7 @@ package comm
 // Controller, and related internal types.
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/UniversityRadioYork/baps3d/bifrost"
@@ -23,22 +24,18 @@ type Client struct {
 
 	// Rx is the channel on which the Controller sends status update messages.
 	Rx <-chan Response
-
-	// Done is the channel through which the Controller tells transmitters
-	// that the client has shut down.
-	// It does so by dropping Done.
-	Done <-chan struct{}
 }
 
 // Send tries to send a request on a Client.
-// It returns false if the Client has shut down.
+// It returns false if the given context has shut down.
 //
-// Send is just sugar over a Select between Tx and Done, and it is
+// Send is just sugar over a Select between Tx and ctx.Done(), and it is
 // ok to do this manually using the channels themselves.
-func (c *Client) Send(r Request) bool {
+func (c *Client) Send(ctx context.Context, r Request) bool {
+	done := ctx.Done()
 	select {
 	case c.Tx <- r:
-	case <-c.Done:
+	case <-done:
 		return false
 	}
 	return true
@@ -52,7 +49,7 @@ func (c *Client) Send(r Request) bool {
 // so the Copy will only succeed when the Controller is able to process it.
 //
 // If Copy returns an error, then the Controller shut down during the copy.
-func (c *Client) Copy() (*Client, error) {
+func (c *Client) Copy(ctx context.Context) (*Client, error) {
 	var ncli *Client
 
 	cb := func(r Response) error {
@@ -71,7 +68,7 @@ func (c *Client) Copy() (*Client, error) {
 		return nil
 	}
 
-	alive, err := c.SendAndProcessReplies("", newClientRequest{}, cb)
+	alive, err := c.SendAndProcessReplies(ctx, "", newClientRequest{}, cb)
 	if !alive {
 		return nil, ErrControllerShutDown
 	}
@@ -88,19 +85,19 @@ func (c *Client) Copy() (*Client, error) {
 // Shutdown asks a Client to shut down its Controller.
 // This is equivalent to sending a ShutdownRequest through the Client,
 // but handles the various bits of paperwork.
-func (c *Client) Shutdown() error {
+func (c *Client) Shutdown(ctx context.Context) error {
 	cb := func(Response) error {
 		return fmt.Errorf("got an unexpected response")
 	}
 	// We don't care if the controller has already shut down.
 	// Client.Shutdown() should be idempotent.
-	_, err := c.SendAndProcessReplies("", shutdownRequest{}, cb)
+	_, err := c.SendAndProcessReplies(ctx, "", shutdownRequest{}, cb)
 	return err
 }
 
 // Bifrost tries to get a Bifrost adapter for Client c's Controller.
 // This fails if the Controller's state can't understand Bifrost messages.
-func (c *Client) Bifrost() (*Bifrost, *bifrost.Client, error) {
+func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *bifrost.Client, error) {
 	var (
 		bf  *Bifrost
 		bfc *bifrost.Client
@@ -122,7 +119,7 @@ func (c *Client) Bifrost() (*Bifrost, *bifrost.Client, error) {
 		return nil
 	}
 
-	alive, err := c.SendAndProcessReplies("", bifrostParserRequest{}, cb)
+	alive, err := c.SendAndProcessReplies(ctx, "", bifrostParserRequest{}, cb)
 	if !alive {
 		return nil, nil, ErrControllerShutDown
 	}
@@ -166,7 +163,7 @@ func ProcessRepliesUntilAck(reply <-chan Response, cb func(Response) error) erro
 // SendAndProcessReplies sends a request with tag tag and body body.
 // It then uses cb to process any non-Ack replies.
 // It returns whether the Client was able to process the message, and any error.
-func (c *Client) SendAndProcessReplies(tag string, body interface{}, cb func(Response) error) (bool, error) {
+func (c *Client) SendAndProcessReplies(ctx context.Context, tag string, body interface{}, cb func(Response) error) (bool, error) {
 	reply := make(chan Response)
 
 	rq := Request{
@@ -174,7 +171,7 @@ func (c *Client) SendAndProcessReplies(tag string, body interface{}, cb func(Res
 		Body:   body,
 	}
 
-	if !c.Send(rq) {
+	if !c.Send(ctx, rq) {
 		return false, nil
 	}
 
@@ -188,23 +185,18 @@ type coclient struct {
 
 	// rx is the request receiver channel.
 	rx <-chan Request
-
-	// done is the shutdown canary channel.
-	done chan<- struct{}
 }
 
 // Close does the disconnection part of a client hangup.
 func (c *coclient) Close() {
 	close(c.tx)
-	close(c.done)
 }
 
-// makeClient creates a new client and coclient pair.
+// makeClient creates a new client and coclient pair, given a parent context.
 func makeClient() (Client, coclient) {
 	rq := make(chan Request)
 	rs := make(chan Response)
-	dn := make(chan struct{})
-	ccl := coclient{tx: rs, rx: rq, done: dn}
-	cli := Client{Tx: rq, Rx: rs, Done: dn}
+	ccl := coclient{tx: rs, rx: rq}
+	cli := Client{Tx: rq, Rx: rs}
 	return cli, ccl
 }
