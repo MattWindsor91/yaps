@@ -23,9 +23,9 @@ func TestIoClient_Run_Tx(t *testing.T) {
 		input    string
 		expected *Message
 	}{
-		{ "! IAMA saucepan", NewMessage("!", "IAMA").AddArg("saucepan") },
-		{ "f00f STOP 'hammer time'", NewMessage("f00f", "STOP").AddArg("hammer time") },
-		{ "? foobar 'qu'u'x' 'x'y'z'z'y'", NewMessage("?", "foobar").AddArg("quux").AddArg("xyzzy")},
+		{"! IAMA saucepan", NewMessage("!", "IAMA").AddArg("saucepan")},
+		{"f00f STOP 'hammer time'", NewMessage("f00f", "STOP").AddArg("hammer time")},
+		{"? foobar 'qu'u'x' 'x'y'z'z'y'", NewMessage("?", "foobar").AddArg("quux").AddArg("xyzzy")},
 	}
 
 	for _, c := range cases {
@@ -33,7 +33,7 @@ func TestIoClient_Run_Tx(t *testing.T) {
 			t.Fatalf("error sending raw message: %v", err)
 		}
 
-		m := <- endp.Rx
+		m := <-endp.Rx
 		mp := strings.TrimSpace(m.String())
 		ep := strings.TrimSpace(c.expected.String())
 		if mp != ep {
@@ -58,16 +58,15 @@ func TestIoClient_Run_Rx(t *testing.T) {
 		input    *Message
 		expected string
 	}{
-		{ NewMessage("!", "IAMA").AddArg("chest of drawers"), "! IAMA 'chest of drawers'" },
-		{ NewMessage("?", "make").AddArg("me").AddArg("a 'sandwich'"), `? make me 'a '\''sandwich'\'''` },
-		{ NewMessage("i386", "blorf"), "i386 blorf" },
+		{NewMessage("!", "IAMA").AddArg("chest of drawers"), "! IAMA 'chest of drawers'"},
+		{NewMessage("?", "make").AddArg("me").AddArg("a 'sandwich'"), `? make me 'a '\''sandwich'\'''`},
+		{NewMessage("i386", "blorf"), "i386 blorf"},
 	}
-
 
 	// Send all in one block, and later receive all in one block, to make it easier to handle any IoClient errors.
 	for _, c := range cases {
 		var (
-			s string
+			s   string
 			err error
 		)
 
@@ -86,7 +85,6 @@ func TestIoClient_Run_Rx(t *testing.T) {
 	}
 	wg.Wait()
 }
-
 
 // runMockIoClient makes and sets-running an IoClient with a simulated TCP connection.
 // It returns an Endpoint and io.ReadWriteCloser that can be used to manipulate both ends of the mock connection.

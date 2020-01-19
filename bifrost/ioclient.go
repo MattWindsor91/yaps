@@ -103,9 +103,7 @@ func (c *IoClient) txLine(ctx context.Context, r *ReaderTokeniser) (err error) {
 func (c *IoClient) sendError(ctx context.Context, errCh chan<- error, e error) {
 	done := ctx.Done()
 	select {
-	case errCh<- e:
+	case errCh <- e:
 	case <-done:
 	}
 }
-
-

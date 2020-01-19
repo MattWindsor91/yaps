@@ -37,7 +37,7 @@ func NewService(address string) (c *Service, err error) {
 		return nil, err
 	}
 
-	c = &Service{role: role, io: bifrost.IoClient{Bifrost:bcl, Conn: conn}}
+	c = &Service{role: role, io: bifrost.IoClient{Bifrost: bcl, Conn: conn}}
 	return c, nil
 }
 

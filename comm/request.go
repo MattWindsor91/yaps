@@ -33,7 +33,7 @@ type OnRequest struct {
 	// The string identifier of the mount point to which the request should be forwarded.
 	MountPoint string
 	// The body of the request to forward.
-	Request    Request
+	Request Request
 }
 
 // RoleRequest requests the Bifrost role of the connected Controller.

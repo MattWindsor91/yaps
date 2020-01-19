@@ -97,12 +97,11 @@ func (s *Server) newConnection(ctx context.Context, c net.Conn) error {
 		Bifrost: conBifrostClient,
 	}
 
-
 	cli := Client{
-		name:       cname,
-		ioClient:   &ioClient,
-		conClient:  conClient,
-		log:        s.log,
+		name:      cname,
+		ioClient:  &ioClient,
+		conClient: conClient,
+		log:       s.log,
 	}
 
 	s.clients[cli] = struct{}{}

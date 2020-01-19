@@ -15,7 +15,6 @@ var pversion = "bifrost-0.0.0"
 // sversion is the Baps3D semantic server version.
 var sversion = "baps3d-0.0.0"
 
-
 // UnknownWord returns an error for when a Bifrost parser doesn't understand the
 // word w.
 func UnknownWord(w string) error {

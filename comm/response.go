@@ -32,7 +32,7 @@ type OnResponse struct {
 	// The string identifier of the mount point from which the request has been forwarded.
 	MountPoint string
 	// The body of the response being forwarded.
-	Request    Response
+	Request Response
 }
 
 // RoleResponse announces the Controller's Bifrost role.

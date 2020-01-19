@@ -41,13 +41,13 @@ func NewEndpointPair() (*Endpoint, *Endpoint) {
 	req := make(chan Message)
 
 	left := Endpoint{
-		Rx:      res,
-		Tx:      req,
+		Rx: res,
+		Tx: req,
 	}
 
 	right := Endpoint{
-		Tx:     res,
-		Rx:     req,
+		Tx: res,
+		Rx: req,
 	}
 
 	return &left, &right
