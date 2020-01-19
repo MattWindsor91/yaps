@@ -45,8 +45,8 @@ type Endpoint struct {
 
 // Close closes all of c's transmission channels.
 func (c *Endpoint) Close() {
-	close(c.Tx);
-	close(c.Done);
+	close(c.Tx)
+	close(c.Done)
 }
 
 // NewClient creates a pair of Bifrost client channel sets.

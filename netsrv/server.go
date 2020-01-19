@@ -108,7 +108,7 @@ func (s *Server) newConnection(c net.Conn) error {
 
 	s.wg.Add(1)
 	go func() {
-		cli.Run(conBifrost, s.clientHangUp, s.done)
+		cli.Run(conBifrost, s.clientHangUp)
 		s.wg.Done()
 	}()
 

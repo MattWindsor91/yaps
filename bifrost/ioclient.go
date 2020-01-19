@@ -28,57 +28,51 @@ func (c *IoClient) Close() error {
 // It takes a channel to notify the caller asynchronously of any errors, and a client
 // and the server's client hangup and done channels.
 // It closes errors once both loops are done.
-func (c *IoClient) Run(errors chan<- error, done <-chan struct{}) {
+func (c *IoClient) Run(errCh chan<- error) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	go func() {
-		c.runTx(errors)
-		// Only hang up if the server is still around.
-		// Otherwise, we'll just hang here waiting for the server to answer,
-		// while the server hangs up the client anyway.
-		select {
-		case errors <- HungUpError:
-		case <-done:
-		}
+		c.runTx(errCh)
+		c.sendError(errCh, HungUpError)
 		wg.Done()
 	}()
 
 	go func() {
-		c.runRx(errors)
+		c.runRx(errCh)
 		wg.Done()
 	}()
 
 	wg.Wait()
-	close(errors)
+	close(errCh)
 }
 
 // runRx runs the client's message receiver loop.
 // This writes messages to the socket.
-func (c *IoClient) runRx(error chan<- error) {
-	// We don't have to check c.bclient.Done here:
+func (c *IoClient) runRx(errCh chan<- error) {
+	// We don't have to check c.Bifrost.Done here:
 	// client always drops both Rx and Done when shutting down.
 	for m := range c.Bifrost.Rx {
 		mbytes, err := m.Pack()
 		if err != nil {
-			error <- err
+			c.sendError(errCh, err)
 			continue
 		}
 
 		if _, err := c.Conn.Write(mbytes); err != nil {
-			error <- err
+			c.sendError(errCh, err)
 			break
 		}
 	}
 }
 
 // runTx runs the client's message transmitter loop.
-func (c *IoClient) runTx(error chan<- error) {
+func (c *IoClient) runTx(errCh chan<- error) {
 	r := NewReaderTokeniser(c.Conn)
 
 	for {
 		if err := c.txLine(r); err != nil {
-			error <- err
+			c.sendError(errCh, err)
 			return
 		}
 	}
@@ -103,5 +97,13 @@ func (c *IoClient) txLine(r *ReaderTokeniser) (err error) {
 	return nil
 }
 
+// sendError tries to send an error e to the error channel errCh.
+// It silently fails if the underlying Client's Done channel is closed.
+func (c *IoClient) sendError(errCh chan<- error, e error) {
+	select {
+	case errCh<- e:
+	case <-c.Bifrost.Done:
+	}
+}
 
 

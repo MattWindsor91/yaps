@@ -32,15 +32,15 @@ func (c *Client) Close() error {
 }
 
 // Run spins up the client's receiver and transmitter loops.
-// It takes the client's Bifrost adapter, and the server's client hangup and done channels.
-func (c *Client) Run(bf *comm.Bifrost, hangUp chan<- *Client, done <-chan struct{}) {
+// It takes the client's Bifrost adapter, and the server's client hangup channel.
+func (c *Client) Run(bf *comm.Bifrost, hangUp chan<- *Client) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
 	errCh := make(chan error)
 
 	go func() {
-		c.ioClient.Run(errCh, done)
+		c.ioClient.Run(errCh)
 		wg.Done()
 	}()
 
