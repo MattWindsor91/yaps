@@ -18,12 +18,12 @@ func TestMessage_WordAndTag(t *testing.T) {
 		// Request with one argument
 		{
 			[]string{"y", "read", "/control/state"},
-			NewMessage("y", "read").AddArg("/control/state"),
+			NewMessage("y", "read").AddArgs("/control/state"),
 		},
 		// Request with multiple arguments
 		{
 			[]string{"z", "write", "/player/time", "0"},
-			NewMessage("z", "write").AddArg("/player/time").AddArg("0"),
+			NewMessage("z", "write").AddArgs("/player/time", "0"),
 		},
 		// Empty response
 		{
@@ -33,12 +33,12 @@ func TestMessage_WordAndTag(t *testing.T) {
 		// Response with one argument
 		{
 			[]string{"!", "OHAI", "playd 1.0.0"},
-			NewMessage(TagBcast, "OHAI").AddArg("playd 1.0.0"),
+			NewMessage(TagBcast, "OHAI").AddArgs("playd 1.0.0"),
 		},
 		// Response with multiple argument
 		{
 			[]string{"x", "ACK", "int", "OK", "1337"},
-			NewMessage("x", RsAck).AddArg("int").AddArg("OK").AddArg("1337"),
+			NewMessage("x", RsAck).AddArgs("int", "OK", "1337"),
 		},
 	}
 
@@ -61,10 +61,7 @@ func TestMessage_WordAndTag(t *testing.T) {
 
 func TestMessage_Args(t *testing.T) {
 	args := []string{"bibbity", "bobbity", "boo"}
-	msg := NewMessage("spelt", "flax")
-	for _, arg := range args {
-		msg.AddArg(arg)
-	}
+	msg := NewMessage("spelt", "flax").AddArgs(args...)
 
 	// Bounds checking
 	for _, i := range []int{-1, len(args)} {

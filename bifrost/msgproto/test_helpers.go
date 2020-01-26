@@ -9,20 +9,23 @@ import (
 
 // AssertMessagesEqual checks whether two messages (expected and actual) are equal up to packed representation.
 // It throws a test failure if not, or if either message fails to pack.
-func AssertMessagesEqual(t *testing.T, expected, actual *Message) {
+// The parameter in should give a brief description of the context of this assertion.
+func AssertMessagesEqual(t *testing.T, in string, got, want *Message) {
+	t.Helper()
+
 	var (
-		ep, ap []byte
+		wp, gp []byte
 		err    error
 	)
-	if ep, err = expected.Pack(); err != nil {
-		t.Errorf("expected message failed to pack: %v", err)
+	if wp, err = want.Pack(); err != nil {
+		t.Errorf("%s: expected message failed to pack: %v", in, err)
 		return
 	}
-	if ap, err = actual.Pack(); err != nil {
-		t.Errorf("actual message failed to pack: %v", err)
+	if gp, err = got.Pack(); err != nil {
+		t.Errorf("%s: actual message failed to pack: %v", in, err)
 		return
 	}
-	if !reflect.DeepEqual(ep, ap) {
-		t.Errorf("expected message %s, got %s", string(ep), string(ap))
+	if !reflect.DeepEqual(gp, wp) {
+		t.Errorf("%s: got message %s, want %s", in, string(gp), string(wp))
 	}
 }

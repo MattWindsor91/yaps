@@ -53,117 +53,117 @@ func TestReaderTokeniser(t *testing.T) {
 		// E2 - empty line
 		{
 			"\n",
-			[][]string{[]string{}},
+			[][]string{{}},
 		},
 		// E3 - empty single-quoted string
 		{
 			"''\n",
-			[][]string{[]string{""}},
+			[][]string{{""}},
 		},
 		// E4 - empty double-quoted string
 		{
 			"\"\"\n",
-			[][]string{[]string{""}},
+			[][]string{{""}},
 		},
 		// W1 - space-delimited words
 		{
 			"foo bar baz\n",
-			[][]string{[]string{"foo", "bar", "baz"}},
+			[][]string{{"foo", "bar", "baz"}},
 		},
 		// W2 - tab-delimited words
 		{
 			"fizz\tbuzz\tpoo\n",
-			[][]string{[]string{"fizz", "buzz", "poo"}},
+			[][]string{{"fizz", "buzz", "poo"}},
 		},
 		// W3 - oddly-delimited words
 		{
 			"bibbity\rbobbity\rboo\n",
-			[][]string{[]string{"bibbity", "bobbity", "boo"}},
+			[][]string{{"bibbity", "bobbity", "boo"}},
 		},
 		// W4 - CRLF tolerance
 		{
 			"silly windows\r\n",
-			[][]string{[]string{"silly", "windows"}},
+			[][]string{{"silly", "windows"}},
 		},
 		// W5 - leading whitespace
 		{
 			"     abc def\n",
-			[][]string{[]string{"abc", "def"}},
+			[][]string{{"abc", "def"}},
 		},
 		// W6 - trailing whitespace
 		{
 			"ghi jkl     \n",
-			[][]string{[]string{"ghi", "jkl"}},
+			[][]string{{"ghi", "jkl"}},
 		},
 		// W7 - surrounding whitespace
 		{
 			"     mno pqr     \n",
-			[][]string{[]string{"mno", "pqr"}},
+			[][]string{{"mno", "pqr"}},
 		},
 		// Q1 - backslash escaping
 		{
 			"abc\\\ndef\n",
-			[][]string{[]string{"abc\ndef"}},
+			[][]string{{"abc\ndef"}},
 		},
 		// Q2 - double-quoting
 		{
 			"\"abc\ndef\"\n",
-			[][]string{[]string{"abc\ndef"}},
+			[][]string{{"abc\ndef"}},
 		},
 		// Q3 - double-quoting, backslash-escape
 		{
 			"\"abc\\\ndef\"\n",
-			[][]string{[]string{"abc\ndef"}},
+			[][]string{{"abc\ndef"}},
 		},
 		// Q4 - single-quoting
 		{
 			"'abc\ndef'\n",
-			[][]string{[]string{"abc\ndef"}},
+			[][]string{{"abc\ndef"}},
 		},
 		// Q5 - single-quoting, backslash-'escape'
 		{
 			"'abc\\\ndef'\n",
-			[][]string{[]string{"abc\\\ndef"}},
+			[][]string{{"abc\\\ndef"}},
 		},
 		// Q6 - backslash-escaped double quote
 		{
 			"Scare\\\" quotes\\\"\n",
-			[][]string{[]string{"Scare\"", "quotes\""}},
+			[][]string{{"Scare\"", "quotes\""}},
 		},
 		// Q7 - backslash-escaped single quote
 		{
 			"I\\'m free\n",
-			[][]string{[]string{"I'm", "free"}},
+			[][]string{{"I'm", "free"}},
 		},
 		// Q8 - single-quoted single quote
 		{
 			`'hello, I'\''m an escaped single quote'` + "\n",
-			[][]string{[]string{"hello, I'm an escaped single quote"}},
+			[][]string{{"hello, I'm an escaped single quote"}},
 		},
 		// Q9 - double-quoted single quote
 		{
 			`"hello, this is an \" escaped double quote"` + "\n",
-			[][]string{[]string{`hello, this is an " escaped double quote`}},
+			[][]string{{`hello, this is an " escaped double quote`}},
 		},
 		// M1 - multiple lines
 		{
 			"first line\nsecond line\n",
 			[][]string{
-				[]string{"first", "line"},
-				[]string{"second", "line"},
+				{"first", "line"},
+				{"second", "line"},
 			},
 		},
 		// U1 - UTF-8
 		{
 			"北野 武\n",
-			[][]string{[]string{"北野", "武"}},
+			[][]string{{"北野", "武"}},
 		},
 		// U2 intentionally left blank.
 		// X1 - Sample BAPS3 command, with double-quoted Windows path
 		{
 			`enqueue file "C:\\Users\\Test\\Artist - Title.mp3" 1` + "\n",
 			[][]string{
-				[]string{"enqueue", "file", `C:\Users\Test\Artist - Title.mp3`, "1"},
+				{"enqueue", "file", `C:\Users\Test\Artist - Title.mp3`, "1"},
 			},
 		},
 	}

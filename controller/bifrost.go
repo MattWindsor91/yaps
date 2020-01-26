@@ -5,6 +5,7 @@ package controller
 import (
 	"context"
 	"fmt"
+
 	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
 	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 
@@ -233,20 +234,18 @@ func (b *Bifrost) handleAck(t string, r AckResponse) error {
 		return r.Err
 	}
 
-	// SPEC: The wording here is specific.
-	// SPEC: See https://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
-	b.respond(*msgproto.NewMessage(t, msgproto.RsAck).AddArg("OK").AddArg("success"))
+	b.respond(*msgproto.NewMessage(t, msgproto.RsAck).AddArgs("OK", "success"))
 	return nil
 }
 
 // handleRole handles converting a RoleResponse r into messages for tag t.
 func (b *Bifrost) handleRole(t string, r RoleResponse) error {
-	b.respond(*msgproto.NewMessage(t, "IAMA").AddArg(r.Role))
+	b.respond(*msgproto.NewMessage(t, "IAMA").AddArgs(r.Role))
 	return nil
 }
 
 // errorToMessage converts the error e to a Bifrost message sent to tag t.
 func errorToMessage(t string, e error) *msgproto.Message {
 	// TODO(@MattWindsor91): figure out whether e is a WHAT or a FAIL.
-	return msgproto.NewMessage(t, msgproto.RsAck).AddArg("WHAT").AddArg(e.Error())
+	return msgproto.NewMessage(t, msgproto.RsAck).AddArgs("WHAT", e.Error())
 }

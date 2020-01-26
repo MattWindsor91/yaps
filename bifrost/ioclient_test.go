@@ -5,11 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"io"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 
 	"github.com/jordwest/mock-conn"
 )
@@ -17,25 +18,25 @@ import (
 // TestIoClient_Run_Tx tests the running of an IoClient by transmitting several raw Bifrost messages down a mock TCP
 // connection and seeing whether they come through the Bifrost RX channel as properly parsed messages.
 func TestIoClient_Run_Tx(t *testing.T) {
+	cases := []struct {
+		input string
+		want  *msgproto.Message
+	}{
+		{"! IAMA saucepan", msgproto.NewMessage("!", "IAMA").AddArgs("saucepan")},
+		{"f00f STOP 'hammer time'", msgproto.NewMessage("f00f", "STOP").AddArgs("hammer time")},
+		{"? foobar 'qu'u'x' 'x'y'z'z'y'", msgproto.NewMessage("?", "foobar").AddArgs("quux", "xyzzy")},
+	}
+
 	var wg sync.WaitGroup
 	endp, tcp := runMockIoClient(t, context.Background(), &wg)
-
-	cases := []struct {
-		input    string
-		expected *msgproto.Message
-	}{
-		{"! IAMA saucepan", msgproto.NewMessage("!", "IAMA").AddArg("saucepan")},
-		{"f00f STOP 'hammer time'", msgproto.NewMessage("f00f", "STOP").AddArg("hammer time")},
-		{"? foobar 'qu'u'x' 'x'y'z'z'y'", msgproto.NewMessage("?", "foobar").AddArg("quux").AddArg("xyzzy")},
-	}
 
 	for _, c := range cases {
 		if _, err := fmt.Fprintln(tcp, c.input); err != nil {
 			t.Fatalf("error sending raw message: %v", err)
 		}
 
-		m := <-endp.Rx
-		msgproto.AssertMessagesEqual(t, c.expected, &m)
+		got := <-endp.Rx
+		msgproto.AssertMessagesEqual(t, "tx/rx", &got, c.want)
 	}
 
 	if err := tcp.Close(); err != nil {
@@ -47,18 +48,18 @@ func TestIoClient_Run_Tx(t *testing.T) {
 // TestIoClient_Run_Rx tests the running of an IoClient by sending several Bifrost messages down its Rx channel, and
 // making sure the resulting traffic through an attached mock TCP connection matches up.
 func TestIoClient_Run_Rx(t *testing.T) {
-	var wg sync.WaitGroup
-	endp, tcp := runMockIoClient(t, context.Background(), &wg)
-	rd := bufio.NewReader(tcp)
-
 	cases := []struct {
 		input    *msgproto.Message
 		expected string
 	}{
-		{msgproto.NewMessage("!", "IAMA").AddArg("chest of drawers"), "! IAMA 'chest of drawers'"},
-		{msgproto.NewMessage("?", "make").AddArg("me").AddArg("a 'sandwich'"), `? make me 'a '\''sandwich'\'''`},
+		{msgproto.NewMessage("!", "IAMA").AddArgs("chest of drawers"), "! IAMA 'chest of drawers'"},
+		{msgproto.NewMessage("?", "make").AddArgs("me", "a 'sandwich'"), `? make me 'a '\''sandwich'\'''`},
 		{msgproto.NewMessage("i386", "blorf"), "i386 blorf"},
 	}
+
+	var wg sync.WaitGroup
+	endp, tcp := runMockIoClient(t, context.Background(), &wg)
+	rd := bufio.NewReader(tcp)
 
 	// Send all in one block, and later receive all in one block, to make it easier to handle any IoClient errors.
 	for _, c := range cases {
@@ -73,7 +74,7 @@ func TestIoClient_Run_Rx(t *testing.T) {
 		}
 		s = strings.TrimSpace(s)
 		if c.expected != s {
-			t.Errorf("expected [%s], got [%s]", c.expected, s)
+			t.Errorf("want [%s], got [%s]", c.expected, s)
 		}
 	}
 

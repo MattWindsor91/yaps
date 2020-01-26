@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"strings"
 	"sync"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/controller"

@@ -3,9 +3,10 @@ package bifrost
 import (
 	"context"
 	"errors"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"io"
 	"sync"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 )
 
 // HungUpError is the error sent by an IoClient when its transmission loop has hung up.

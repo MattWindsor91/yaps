@@ -2,10 +2,11 @@ package netsrv
 
 import (
 	"context"
-	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"log"
 	"net"
 	"sync"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost"
 
 	"github.com/UniversityRadioYork/baps3d/controller"
 )

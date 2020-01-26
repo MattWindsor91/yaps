@@ -3,10 +3,11 @@ package controller_test
 import (
 	"context"
 	"fmt"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 
 	"github.com/UniversityRadioYork/baps3d/controller"
 )

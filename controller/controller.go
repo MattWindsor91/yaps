@@ -7,8 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"reflect"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
 
 var (

@@ -5,8 +5,9 @@ package list
 
 import (
 	"fmt"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"strconv"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 
 	"github.com/UniversityRadioYork/baps3d/controller"
 )
@@ -113,13 +114,13 @@ func (l *List) EmitBifrostResponse(tag string, rbody interface{}, msgTx chan<- m
 
 // handleAutoMode handles converting an AutoModeResponse r into messages for tag t.
 func handleAutoMode(t string, r AutoModeResponse, msgTx chan<- msgproto.Message) error {
-	msgTx <- *msgproto.NewMessage(t, "AUTO").AddArg(r.AutoMode.String())
+	msgTx <- *msgproto.NewMessage(t, "AUTO").AddArgs(r.AutoMode.String())
 	return nil
 }
 
 // handleFreeze handles converting a FreezeResponse r into messages for tag t.
 func handleFreeze(t string, r FreezeResponse, msgTx chan<- msgproto.Message) error {
-	msgTx <- *msgproto.NewMessage(t, "COUNTL").AddArg(strconv.Itoa(len(r)))
+	msgTx <- *msgproto.NewMessage(t, "COUNTL").AddArgs(strconv.Itoa(len(r)))
 
 	// The next bit is the same as if we were loading the items--
 	// so we reuse the logic.
@@ -149,13 +150,13 @@ func handleItem(t string, r ItemResponse, msgTx chan<- msgproto.Message) error {
 		return fmt.Errorf("unknown item type %v", r.Item.Type())
 	}
 
-	msgTx <- *msgproto.NewMessage(t, word).AddArg(strconv.Itoa(r.Index)).AddArg(r.Item.Hash()).AddArg(r.Item.Payload())
+	msgTx <- *msgproto.NewMessage(t, word).AddArgs(strconv.Itoa(r.Index), r.Item.Hash(), r.Item.Payload())
 	return nil
 }
 
 // handleSelect handles converting a SelectResponse r into messages for tag t.
 func handleSelect(t string, r SelectResponse, msgTx chan<- msgproto.Message) error {
-	msg := *msgproto.NewMessage(t, "SEL").AddArg(strconv.Itoa(r.Index)).AddArg(r.Hash)
+	msg := *msgproto.NewMessage(t, "SEL").AddArgs(strconv.Itoa(r.Index), r.Hash)
 	msgTx <- msg
 	return nil
 }

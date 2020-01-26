@@ -2,6 +2,7 @@ package bifrost
 
 import (
 	"context"
+
 	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 )
 

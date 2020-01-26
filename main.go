@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/UniversityRadioYork/baps3d/config"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
+
+	"github.com/UniversityRadioYork/baps3d/config"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/UniversityRadioYork/baps3d/console"
 	"github.com/UniversityRadioYork/baps3d/controller"

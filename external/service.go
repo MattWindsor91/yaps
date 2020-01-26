@@ -3,11 +3,12 @@ package external
 import (
 	"context"
 	"errors"
+	"net"
+
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
 	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"github.com/UniversityRadioYork/baps3d/controller"
-	"net"
 )
 
 // Service is a Controllable that delegates requests and responses to a Bifrost service.
@@ -61,10 +62,9 @@ func NewService(address string) (c *Service, err error) {
 func handshake(cliEnd *bifrost.Endpoint) (role string, err error) {
 	// TODO(@MattWindsor91): make this more symmetric with the way it's done on the client side
 	ohaiMsg := <-cliEnd.Rx
-	if _, err := corecmd.ParseOhaiResponse(ohaiMsg); err != nil {
+	if _, err := corecmd.ParseOhaiResponse(&ohaiMsg); err != nil {
 		return "", err
 	}
 
 	return "", errors.New("not implemented")
 }
-

@@ -42,10 +42,10 @@ func NewMessage(tag, word string) *Message {
 	}
 }
 
-// AddArg adds the given argument to a Message in-place.
+// AddArg adds the given arguments to a Message in-place.
 // The given Message-pointer is returned, to allow for chaining.
-func (m *Message) AddArg(arg string) *Message {
-	m.args = append(m.args, arg)
+func (m *Message) AddArgs(args ...string) *Message {
+	m.args = append(m.args, args...)
 	return m
 }
 
@@ -132,10 +132,6 @@ func LineToMessage(line []string) (*Message, error) {
 		return nil, fmt.Errorf("insufficient words")
 	}
 
-	msg := NewMessage(line[0], line[1])
-	for _, arg := range line[2:] {
-		msg.AddArg(arg)
-	}
-
+	msg := NewMessage(line[0], line[1]).AddArgs(line[2:]...)
 	return msg, nil
 }

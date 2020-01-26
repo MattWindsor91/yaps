@@ -2,8 +2,9 @@ package bifrost
 
 import (
 	"context"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 	"testing"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
 )
 
 // File bifrost/endpoint_test.go contains tests for the Endpoint struct.
@@ -20,33 +21,33 @@ func TestNewEndpointPair_TxRx(t *testing.T) {
 func testEndpointTxRx(t *testing.T, tx chan<- msgproto.Message, rx <-chan msgproto.Message) {
 	t.Helper()
 
-	msg := msgproto.NewMessage("foo", "bar").AddArg("baz")
-	go func() { tx <- *msg }()
-	msg2 := <-rx
+	want := msgproto.NewMessage("foo", "bar").AddArgs("baz")
+	go func() { tx <- *want }()
+	got := <-rx
 
-	msgproto.AssertMessagesEqual(t, msg, &msg2)
+	msgproto.AssertMessagesEqual(t, "tx/rx", &got, want)
 }
 
 func TestEndpoint_Send(t *testing.T) {
 	l, r := NewEndpointPair()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	msg := msgproto.NewMessage("!", "jam").AddArg("on").AddArg("toast")
+	want := msgproto.NewMessage("!", "jam").AddArgs("on", "toast")
 
 	go func() {
-		if !l.Send(ctx, *msg) {
+		if !l.Send(ctx, *want) {
 			t.Error("send failed unexpectedly")
 		}
 	}()
 
-	msg2 := <-r.Rx
-	msgproto.AssertMessagesEqual(t, msg, &msg2)
+	got := <-r.Rx
+	msgproto.AssertMessagesEqual(t, "send/rx", &got, want)
 
 	// After cancelling, sends should fail.
 	cancel()
 
 	go func() {
-		if l.Send(ctx, *msg) {
+		if l.Send(ctx, *want) {
 			t.Error("send succeeded unexpectedly")
 		}
 	}()
