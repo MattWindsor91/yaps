@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
 	"reflect"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
@@ -155,14 +156,18 @@ func (c *Controller) handleRequest(ctx context.Context, rq Request) {
 	case bifrostParserRequest:
 		err = c.handleBifrostParserRequest(o, body)
 	default:
-		replyCb := func(rbody interface{}) {
-			c.reply(o, rbody)
-		}
-		err = c.state.HandleRequest(replyCb, c.broadcast, body)
+		err = c.handleStateSpecificRequest(o, body)
 	}
 
-	ack := AckResponse{err}
+	ack := DoneResponse{err}
 	c.reply(o, ack)
+}
+
+func (c *Controller) handleStateSpecificRequest(o RequestOrigin, body interface{}) error {
+	replyCb := func(rbody interface{}) {
+		c.reply(o, rbody)
+	}
+	return c.state.HandleRequest(replyCb, c.broadcast, body)
 }
 
 // handleDumpRequest handles a dump with origin o and body b.
@@ -199,7 +204,7 @@ func (c *Controller) handleOnRequest(ctx context.Context, o RequestOrigin, b OnR
 
 // handleRoleRequest handles a role request with origin o and body b.
 func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
-	c.reply(o, RoleResponse{Role: c.state.RoleName()})
+	c.reply(o, corecmd.IamaResponse{Role: c.state.RoleName()})
 
 	// Role requests never fail
 	return nil

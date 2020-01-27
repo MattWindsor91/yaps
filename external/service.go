@@ -61,10 +61,17 @@ func NewService(address string) (c *Service, err error) {
 // handshake performs the Bifrost handshake with whichever Bifrost service is on the other end of cliEnd.
 func handshake(cliEnd *bifrost.Endpoint) (role string, err error) {
 	// TODO(@MattWindsor91): make this more symmetric with the way it's done on the client side
+	// TODO(@MattWindsor91): timeouts
 	ohaiMsg := <-cliEnd.Rx
-	if _, err := corecmd.ParseOhaiResponse(&ohaiMsg); err != nil {
+	if _, err = corecmd.ParseOhaiResponse(&ohaiMsg); err != nil {
 		return "", err
 	}
 
-	return "", errors.New("not implemented")
+	var iama *corecmd.IamaResponse
+	iamaMsg := <-cliEnd.Rx
+	if iama, err = corecmd.ParseIamaResponse(&iamaMsg); err != nil {
+		return "", err
+	}
+
+	return iama.Role, nil
 }

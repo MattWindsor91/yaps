@@ -173,11 +173,7 @@ func (b *Bifrost) handleNewClientResponses(ctx context.Context) bool {
 	// SPEC: see http://universityradioyork.github.io/baps3-spec/protocol/core/commands.html
 
 	// OHAI is a Bifrost-ism, so we don't bother asking the Client about it
-	ohai := corecmd.OhaiResponse{
-		ProtocolVer: corecmd.ThisProtocolVer,
-		ServerVer:   sversion,
-	}
-	b.respond(*ohai.Message(msgproto.TagBcast))
+	b.sendOhai()
 
 	// We don't use b.reply here, because we want to suppress ACK.
 	ncreply := make(chan Response)
@@ -193,6 +189,14 @@ func (b *Bifrost) handleNewClientResponses(ctx context.Context) bool {
 	return ProcessRepliesUntilAck(ncreply, b.handleResponse) == nil
 }
 
+func (b *Bifrost) sendOhai() {
+	ohai := corecmd.OhaiResponse{
+		ProtocolVer: corecmd.ThisProtocolVer,
+		ServerVer:   sversion,
+	}
+	b.respond(*ohai.Message(msgproto.TagBcast))
+}
+
 // handleResponseForwardingError handles a controller response rs, forwarding
 // the error as a // message.
 func (b *Bifrost) handleResponseForwardingError(rs Response) {
@@ -206,9 +210,9 @@ func (b *Bifrost) handleResponse(rs Response) error {
 	tag := bifrostTagOf(rs)
 
 	switch r := rs.Body.(type) {
-	case AckResponse:
+	case DoneResponse:
 		return b.handleAck(tag, r)
-	case RoleResponse:
+	case corecmd.IamaResponse:
 		return b.handleRole(tag, r)
 	default:
 		return b.parser.EmitBifrostResponse(tag, r, b.bifrost.Tx)
@@ -227,9 +231,10 @@ func bifrostTagOf(rs Response) string {
 	return rs.Origin.Tag
 }
 
-// handleAck handles converting an AckResponse r into messages for tag t.
+// handleAck handles converting an DoneResponse r into messages for tag t.
 // If the ACK had an error, it is propagated down.
-func (b *Bifrost) handleAck(t string, r AckResponse) error {
+func (b *Bifrost) handleAck(t string, r DoneResponse) error {
+
 	if r.Err != nil {
 		return r.Err
 	}
@@ -238,9 +243,9 @@ func (b *Bifrost) handleAck(t string, r AckResponse) error {
 	return nil
 }
 
-// handleRole handles converting a RoleResponse r into messages for tag t.
-func (b *Bifrost) handleRole(t string, r RoleResponse) error {
-	b.respond(*msgproto.NewMessage(t, "IAMA").AddArgs(r.Role))
+// handleRole handles converting a IamaResponse r into messages for tag t.
+func (b *Bifrost) handleRole(t string, r corecmd.IamaResponse) error {
+	b.respond(*((&r).Message(t)))
 	return nil
 }
 

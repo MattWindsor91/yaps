@@ -3,8 +3,8 @@ package list
 // This file contains the requests a Controller containing a List understands.
 // See 'controller.go' for the controller implementation.
 // See 'bifrost.go' for a mapping between these and Bifrost messages.
-// See package 'comm' for the higher-level request/response infrastructure.
-// - Controllers containing Lists also understand requests from 'comm/request.go'.
+// See package 'controller' for the higher-level request/response infrastructure.
+// - Controllers containing Lists also understand requests from 'controller/request.go'.
 
 // When adding new responses, make sure to add:
 // - controller logic in 'controller.go';

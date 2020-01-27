@@ -133,7 +133,7 @@ func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *bifrost.Endpoint, erro
 	return bf, bfc, nil
 }
 
-// ProcessRepliesUntilAck drains the channel reply until an AckResponse is
+// ProcessRepliesUntilAck drains the channel reply until an DoneResponse is
 // returned or the channel closes.
 // It feeds any non-Ack response bodies received from reply into cb until and
 // unless cb returns an error.
@@ -141,12 +141,12 @@ func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *bifrost.Endpoint, erro
 // It returns the first of these errors to arrive:
 // 1) an error if the channel closed before Ack arrived;
 // 2) the first error returned by cb;
-// 3) any error coming from the AckResponse.
+// 3) any error coming from the DoneResponse.
 func ProcessRepliesUntilAck(reply <-chan Response, cb func(Response) error) error {
 	var cberr error
 
 	for r := range reply {
-		if ack, isAck := r.Body.(AckResponse); isAck {
+		if ack, isAck := r.Body.(DoneResponse); isAck {
 			if cberr != nil {
 				return cberr
 			}

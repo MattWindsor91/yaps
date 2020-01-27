@@ -70,13 +70,7 @@ func (m *Message) packToBuffer() (*bytes.Buffer, error) {
 	output := bytes.NewBufferString(m.tag + " " + m.word)
 
 	for _, a := range m.args {
-		// Escape arg if needed
-		for _, c := range a {
-			if c < unicode.MaxASCII && (unicode.IsSpace(c) || strings.ContainsRune(`'"\`, c)) {
-				a = escapeArgument(a)
-				break
-			}
-		}
+		a = m.escapeArgIfNeeded(a)
 
 		if _, err := output.WriteString(" " + a); err != nil {
 			return output, err
@@ -84,6 +78,15 @@ func (m *Message) packToBuffer() (*bytes.Buffer, error) {
 	}
 	_, err := output.WriteRune('\n')
 	return output, err
+}
+
+func (m *Message) escapeArgIfNeeded(a string) string {
+	for _, c := range a {
+		if c < unicode.MaxASCII && (unicode.IsSpace(c) || strings.ContainsRune(`'"\`, c)) {
+			return escapeArgument(a)
+		}
+	}
+	return a
 }
 
 // Tag returns this Message's tag.

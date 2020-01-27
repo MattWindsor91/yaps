@@ -21,8 +21,8 @@ type Response struct {
 // Standard response bodies
 //
 
-// AckResponse announces that a command has finished processing.
-type AckResponse struct {
+// DoneResponse announces that a command has finished processing.
+type DoneResponse struct {
 	// Err, if non-nil, is the error encountered during command processing.
 	Err error
 }
@@ -33,12 +33,6 @@ type OnResponse struct {
 	MountPoint string
 	// The body of the response being forwarded.
 	Request Response
-}
-
-// RoleResponse announces the Controller's Bifrost role.
-type RoleResponse struct {
-	// Role is the role of the Controller.
-	Role string
 }
 
 //

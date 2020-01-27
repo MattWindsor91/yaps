@@ -133,7 +133,7 @@ func TestClient_Send_Reply(t *testing.T) {
 			}
 		}
 		checkReply("first", "controller_test.knownDummyResponse")
-		checkReply("second", "controller.AckResponse")
+		checkReply("second", "controller.DoneResponse")
 	}
 	testWithController(&testState{}, f, t)
 }
