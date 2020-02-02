@@ -6,10 +6,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/UniversityRadioYork/bifrost-go/corecmd"
-	"github.com/UniversityRadioYork/bifrost-go/msgproto"
+	"github.com/UniversityRadioYork/bifrost-go/core"
 
-	"github.com/UniversityRadioYork/bifrost-go"
+	"github.com/UniversityRadioYork/bifrost-go/comm"
+	"github.com/UniversityRadioYork/bifrost-go/message"
 )
 
 // sversion is the Baps3D semantic server version.
@@ -28,11 +28,11 @@ type Bifrost struct {
 	client *Client
 
 	// bifrost is the endpoint being used to talk to a Bifrost client.
-	bifrost *bifrost.Endpoint
+	bifrost *comm.Endpoint
 
 	// parser is some type that provides parsers and emitters for Bifrost
 	// messages.
-	parser bifrost.Parser
+	parser comm.Parser
 
 	// reply is the channel this adapter uses to service replies to requests it sends to the client.
 	reply chan Response
@@ -41,10 +41,10 @@ type Bifrost struct {
 // NewBifrost wraps client inside a Bifrost adapter with parsing and emitting
 // done by parser.
 // It returns a bifrost.Endpoint for talking to the adapter.
-func NewBifrost(client *Client, parser bifrost.Parser) (*Bifrost, *bifrost.Endpoint) {
+func NewBifrost(client *Client, parser comm.Parser) (*Bifrost, *comm.Endpoint) {
 	reply := make(chan Response)
 
-	pubEnd, privEnd := bifrost.NewEndpointPair()
+	pubEnd, privEnd := comm.NewEndpointPair()
 
 	bif := Bifrost{
 		client:  client,
@@ -56,7 +56,7 @@ func NewBifrost(client *Client, parser bifrost.Parser) (*Bifrost, *bifrost.Endpo
 	return &bif, pubEnd
 }
 
-func (b *Bifrost) respond(m msgproto.Message) {
+func (b *Bifrost) respond(m message.Message) {
 	b.bifrost.Tx <- m
 }
 
@@ -105,7 +105,7 @@ func (b *Bifrost) Run(ctx context.Context) {
 // handleRequest handles the request message rq.
 // It returns whether or not the client is still able to handle
 // requests.
-func (b *Bifrost) handleRequest(ctx context.Context, rq msgproto.Message) bool {
+func (b *Bifrost) handleRequest(ctx context.Context, rq message.Message) bool {
 	request, err := b.fromMessage(rq)
 	if err != nil {
 		b.respond(*errorToMessage(rq.Tag(), err))
@@ -116,7 +116,7 @@ func (b *Bifrost) handleRequest(ctx context.Context, rq msgproto.Message) bool {
 }
 
 // fromMessage tries to parse a message as a controller request.
-func (b *Bifrost) fromMessage(m msgproto.Message) (*Request, error) {
+func (b *Bifrost) fromMessage(m message.Message) (*Request, error) {
 	rbody, err := b.bodyFromMessage(m)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (b *Bifrost) fromMessage(m msgproto.Message) (*Request, error) {
 }
 
 // bodyFromMessage tries to parse a message as the body of a controller request.
-func (b *Bifrost) bodyFromMessage(m msgproto.Message) (interface{}, error) {
+func (b *Bifrost) bodyFromMessage(m message.Message) (interface{}, error) {
 	// Standard requests first.
 	switch m.Word() {
 	case "dump":
@@ -177,24 +177,24 @@ func (b *Bifrost) handleNewClientResponses(ctx context.Context) bool {
 
 	// We don't use b.reply here, because we want to suppress ACK.
 	ncreply := make(chan Response)
-	if !b.client.Send(ctx, *makeRequest(RoleRequest{}, msgproto.TagBcast, ncreply)) {
+	if !b.client.Send(ctx, *makeRequest(RoleRequest{}, message.TagBcast, ncreply)) {
 		return false
 	}
 	if ProcessRepliesUntilAck(ncreply, b.handleResponse) != nil {
 		return false
 	}
-	if !b.client.Send(ctx, *makeRequest(DumpRequest{}, msgproto.TagBcast, ncreply)) {
+	if !b.client.Send(ctx, *makeRequest(DumpRequest{}, message.TagBcast, ncreply)) {
 		return false
 	}
 	return ProcessRepliesUntilAck(ncreply, b.handleResponse) == nil
 }
 
 func (b *Bifrost) sendOhai() {
-	ohai := corecmd.OhaiResponse{
-		ProtocolVer: corecmd.ThisProtocolVer,
+	ohai := core.OhaiResponse{
+		ProtocolVer: core.ThisProtocolVer,
 		ServerVer:   sversion,
 	}
-	b.respond(*ohai.Message(msgproto.TagBcast))
+	b.respond(*ohai.Message(message.TagBcast))
 }
 
 // handleResponseForwardingError handles a controller response rs, forwarding
@@ -212,7 +212,7 @@ func (b *Bifrost) handleResponse(rs Response) error {
 	switch r := rs.Body.(type) {
 	case DoneResponse:
 		return b.handleAck(tag, r)
-	case corecmd.IamaResponse:
+	case core.IamaResponse:
 		return b.handleRole(tag, r)
 	default:
 		return b.parser.EmitBifrostResponse(tag, r, b.bifrost.Tx)
@@ -223,7 +223,7 @@ func (b *Bifrost) handleResponse(rs Response) error {
 // This is either the broadcast tag, if rs is a broadcast, or the given tag.
 func bifrostTagOf(rs Response) string {
 	if rs.Broadcast {
-		return msgproto.TagBcast
+		return message.TagBcast
 	}
 	if rs.Origin == nil {
 		panic("non-broadcast response with nil origin")
@@ -239,18 +239,18 @@ func (b *Bifrost) handleAck(t string, r DoneResponse) error {
 		return r.Err
 	}
 
-	b.respond(*msgproto.NewMessage(t, msgproto.RsAck).AddArgs("OK", "success"))
+	b.respond(*message.New(t, core.RsAck).AddArgs("OK", "success"))
 	return nil
 }
 
 // handleRole handles converting a IamaResponse r into messages for tag t.
-func (b *Bifrost) handleRole(t string, r corecmd.IamaResponse) error {
+func (b *Bifrost) handleRole(t string, r core.IamaResponse) error {
 	b.respond(*((&r).Message(t)))
 	return nil
 }
 
 // errorToMessage converts the error e to a Bifrost message sent to tag t.
-func errorToMessage(t string, e error) *msgproto.Message {
+func errorToMessage(t string, e error) *message.Message {
 	// TODO(@MattWindsor91): figure out whether e is a WHAT or a FAIL.
-	return msgproto.NewMessage(t, msgproto.RsAck).AddArgs("WHAT", e.Error())
+	return message.New(t, core.RsAck).AddArgs("WHAT", e.Error())
 }

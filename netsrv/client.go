@@ -6,8 +6,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/UniversityRadioYork/bifrost-go"
 	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/UniversityRadioYork/bifrost-go/comm"
 )
 
 // Client holds the server-side state of a baps3d Bifrost client.
@@ -23,7 +23,7 @@ type Client struct {
 	conClient *controller.Client
 
 	// ioClient is the underlying Bifrost-level client.
-	ioClient *bifrost.IoClient
+	ioClient *comm.IoEndpoint
 }
 
 // Close closes the given client.
@@ -62,7 +62,7 @@ func (c *Client) Run(ctx context.Context, bf *controller.Bifrost, hangUp chan<- 
 // other errors.
 func (c *Client) handleIoErrors(errCh <-chan error, hangUp chan<- *Client) {
 	for err := range errCh {
-		if errors.Is(err, bifrost.HungUpError) {
+		if errors.Is(err, comm.HungUpError) {
 			hangUp <- c
 		} else {
 			c.outputError(err)

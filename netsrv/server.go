@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/UniversityRadioYork/bifrost-go"
+	"github.com/UniversityRadioYork/bifrost-go/comm"
 
 	"github.com/UniversityRadioYork/baps3d/controller"
 )
@@ -93,9 +93,9 @@ func (s *Server) newConnection(ctx context.Context, c net.Conn) error {
 		return err
 	}
 
-	ioClient := bifrost.IoClient{
-		Conn:    c,
-		Bifrost: conBifrostClient,
+	ioClient := comm.IoEndpoint{
+		Io:       c,
+		Endpoint: conBifrostClient,
 	}
 
 	cli := Client{

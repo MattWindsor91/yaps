@@ -5,10 +5,10 @@ import (
 	"errors"
 	"net"
 
-	"github.com/UniversityRadioYork/bifrost-go"
-	"github.com/UniversityRadioYork/bifrost-go/corecmd"
-	"github.com/UniversityRadioYork/bifrost-go/msgproto"
 	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/UniversityRadioYork/bifrost-go/comm"
+	"github.com/UniversityRadioYork/bifrost-go/core"
+	"github.com/UniversityRadioYork/bifrost-go/message"
 )
 
 // Service is a Controllable that delegates requests and responses to a Bifrost service.
@@ -17,7 +17,7 @@ type Service struct {
 	role string
 
 	// io represents the connection to the external service.
-	io bifrost.IoClient
+	io comm.IoEndpoint
 }
 
 func (s *Service) RoleName() string {
@@ -36,7 +36,7 @@ func (c *Service) ParseBifrostRequest(word string, args []string) (interface{}, 
 	return nil, errors.New("not implemented")
 }
 
-func (c *Service) EmitBifrostResponse(tag string, resp interface{}, out chan<- msgproto.Message) error {
+func (c *Service) EmitBifrostResponse(tag string, resp interface{}, out chan<- message.Message) error {
 	return errors.New("not implemented")
 }
 
@@ -47,29 +47,29 @@ func NewService(address string) (c *Service, err error) {
 		return nil, err
 	}
 
-	srvEnd, cliEnd := bifrost.NewEndpointPair()
+	srvEnd, cliEnd := comm.NewEndpointPair()
 
 	var role string
 	if role, err = handshake(cliEnd); err != nil {
 		return nil, err
 	}
 
-	c = &Service{role: role, io: bifrost.IoClient{Bifrost: srvEnd, Conn: conn}}
+	c = &Service{role: role, io: comm.IoEndpoint{Endpoint: srvEnd, Io: conn}}
 	return c, nil
 }
 
 // handshake performs the Bifrost handshake with whichever Bifrost service is on the other end of cliEnd.
-func handshake(cliEnd *bifrost.Endpoint) (role string, err error) {
+func handshake(cliEnd *comm.Endpoint) (role string, err error) {
 	// TODO(@MattWindsor91): make this more symmetric with the way it's done on the client side
 	// TODO(@MattWindsor91): timeouts
 	ohaiMsg := <-cliEnd.Rx
-	if _, err = corecmd.ParseOhaiResponse(&ohaiMsg); err != nil {
+	if _, err = core.ParseOhaiResponse(&ohaiMsg); err != nil {
 		return "", err
 	}
 
-	var iama *corecmd.IamaResponse
+	var iama *core.IamaResponse
 	iamaMsg := <-cliEnd.Rx
-	if iama, err = corecmd.ParseIamaResponse(&iamaMsg); err != nil {
+	if iama, err = core.ParseIamaResponse(&iamaMsg); err != nil {
 		return "", err
 	}
 

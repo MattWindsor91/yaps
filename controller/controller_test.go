@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/UniversityRadioYork/bifrost-go/msgproto"
+	"github.com/UniversityRadioYork/bifrost-go/message"
 
 	"github.com/UniversityRadioYork/baps3d/controller"
 )
@@ -63,7 +63,7 @@ func (*testStateWithParser) ParseBifrostRequest(word string, _ []string) (interf
 	return nil, controller.UnknownWord(word)
 }
 
-func (*testStateWithParser) EmitBifrostResponse(string, interface{}, chan<- msgproto.Message) error {
+func (*testStateWithParser) EmitBifrostResponse(string, interface{}, chan<- message.Message) error {
 	return nil
 }
 

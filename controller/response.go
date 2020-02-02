@@ -1,6 +1,6 @@
 package controller
 
-import "github.com/UniversityRadioYork/bifrost-go"
+import "github.com/UniversityRadioYork/bifrost-go/comm"
 
 // File response.go contains the high-level Response type, and response bodies common to all Controllers.
 
@@ -46,4 +46,4 @@ type newClientResponse struct {
 }
 
 // bifrostParserResponse responds to a request for a Bifrost parser.
-type bifrostParserResponse bifrost.Parser
+type bifrostParserResponse comm.Parser

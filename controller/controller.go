@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/UniversityRadioYork/bifrost-go/corecmd"
+	"github.com/UniversityRadioYork/bifrost-go/core"
 
-	"github.com/UniversityRadioYork/bifrost-go"
+	"github.com/UniversityRadioYork/bifrost-go/comm"
 )
 
 var (
@@ -205,7 +205,7 @@ func (c *Controller) handleOnRequest(ctx context.Context, o RequestOrigin, b OnR
 
 // handleRoleRequest handles a role request with origin o and body b.
 func (c *Controller) handleRoleRequest(o RequestOrigin, b RoleRequest) error {
-	c.reply(o, corecmd.IamaResponse{Role: c.state.RoleName()})
+	c.reply(o, core.IamaResponse{Role: c.state.RoleName()})
 
 	// Role requests never fail
 	return nil
@@ -224,7 +224,7 @@ func (c *Controller) handleShutdownRequest(o RequestOrigin, b shutdownRequest) e
 
 // handleBifrostParserRequest handles a get-Bifrost-parser request with origin o and body b.
 func (c *Controller) handleBifrostParserRequest(o RequestOrigin, b bifrostParserRequest) error {
-	bp, ok := c.state.(bifrost.Parser)
+	bp, ok := c.state.(comm.Parser)
 	if !ok {
 		return ErrControllerCannotSpeakBifrost
 	}

@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/UniversityRadioYork/bifrost-go"
+	"github.com/UniversityRadioYork/bifrost-go/comm"
 )
 
 var (
@@ -97,10 +97,10 @@ func (c *Client) Shutdown(ctx context.Context) error {
 
 // Bifrost tries to get a Bifrost adapter for Client c's Controller.
 // This fails if the Controller's state can't understand Bifrost messages.
-func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *bifrost.Endpoint, error) {
+func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *comm.Endpoint, error) {
 	var (
 		bf  *Bifrost
-		bfc *bifrost.Endpoint
+		bfc *comm.Endpoint
 	)
 
 	bfset := false

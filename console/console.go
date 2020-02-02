@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/UniversityRadioYork/bifrost-go/msgproto"
+	"github.com/UniversityRadioYork/bifrost-go/message"
 
-	"github.com/UniversityRadioYork/bifrost-go"
 	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/UniversityRadioYork/bifrost-go/comm"
 	"github.com/chzyer/readline"
 )
 
@@ -30,8 +30,8 @@ const (
 type Console struct {
 	client  *controller.Client
 	bf      *controller.Bifrost
-	bclient *bifrost.Endpoint
-	tok     *msgproto.Tokeniser
+	bclient *comm.Endpoint
+	tok     *message.Tokeniser
 	rl      *readline.Instance
 	txrun   bool
 }
@@ -54,7 +54,7 @@ func New(ctx context.Context, client *controller.Client) (*Console, error) {
 		client:  client,
 		bf:      bf,
 		bclient: bfc,
-		tok:     msgproto.NewTokeniser(),
+		tok:     message.NewTokeniser(),
 		rl:      rl,
 	}, nil
 }
@@ -187,7 +187,7 @@ func (c *Console) handleLine(ctx context.Context, line []string) (bool, error) {
 // Returns whether the upstream client is still taking messages, and any errors
 // arising from processing the line.
 func (c *Console) handleBifrostLine(ctx context.Context, line []string) (bool, error) {
-	tag, err := msgproto.NewTag()
+	tag, err := message.NewTag()
 	if err != nil {
 		return true, err
 	}
@@ -199,7 +199,7 @@ func (c *Console) handleBifrostLine(ctx context.Context, line []string) (bool, e
 }
 
 func (c *Console) txLine(ctx context.Context, line []string) (bool, error) {
-	msg, merr := msgproto.LineToMessage(line)
+	msg, merr := message.NewFromLine(line)
 	if merr != nil {
 		return true, merr
 	}
