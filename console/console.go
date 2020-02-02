@@ -13,7 +13,6 @@ import (
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 	"github.com/UniversityRadioYork/baps3d/controller"
 	"github.com/chzyer/readline"
-	"github.com/satori/go.uuid"
 )
 
 const (
@@ -188,7 +187,7 @@ func (c *Console) handleLine(ctx context.Context, line []string) (bool, error) {
 // Returns whether the upstream client is still taking messages, and any errors
 // arising from processing the line.
 func (c *Console) handleBifrostLine(ctx context.Context, line []string) (bool, error) {
-	tag, err := gentag()
+	tag, err := msgproto.NewTag()
 	if err != nil {
 		return true, err
 	}
@@ -197,16 +196,6 @@ func (c *Console) handleBifrostLine(ctx context.Context, line []string) (bool, e
 	tline[0] = tag
 	copy(tline[1:], line)
 	return c.txLine(ctx, tline)
-}
-
-// gentag generates a new, (hopefully) unique tag.
-// It may return an error if the generator fails.
-func gentag() (string, error) {
-	id, err := uuid.NewV1()
-	if err != nil {
-		return "", err
-	}
-	return id.String(), nil
 }
 
 func (c *Console) txLine(ctx context.Context, line []string) (bool, error) {

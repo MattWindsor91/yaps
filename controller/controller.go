@@ -7,8 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
 	"reflect"
+
+	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
 
 	"github.com/UniversityRadioYork/baps3d/bifrost"
 )
