@@ -6,10 +6,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
+	"github.com/UniversityRadioYork/bifrost-go/corecmd"
+	"github.com/UniversityRadioYork/bifrost-go/msgproto"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost"
+	"github.com/UniversityRadioYork/bifrost-go"
 )
 
 // sversion is the Baps3D semantic server version.

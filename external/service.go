@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost"
-	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
+	"github.com/UniversityRadioYork/bifrost-go"
+	"github.com/UniversityRadioYork/bifrost-go/corecmd"
+	"github.com/UniversityRadioYork/bifrost-go/msgproto"
 	"github.com/UniversityRadioYork/baps3d/controller"
 )
 

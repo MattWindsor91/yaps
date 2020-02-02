@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost/corecmd"
+	"github.com/UniversityRadioYork/bifrost-go/corecmd"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost"
+	"github.com/UniversityRadioYork/bifrost-go"
 )
 
 var (

@@ -1,6 +1,6 @@
 package controller
 
-import "github.com/UniversityRadioYork/baps3d/bifrost"
+import "github.com/UniversityRadioYork/bifrost-go"
 
 // File response.go contains the high-level Response type, and response bodies common to all Controllers.
 

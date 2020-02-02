@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost"
+	"github.com/UniversityRadioYork/bifrost-go"
 	"github.com/UniversityRadioYork/baps3d/controller"
 )
 

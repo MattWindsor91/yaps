@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost"
+	"github.com/UniversityRadioYork/bifrost-go"
 )
 
 var (

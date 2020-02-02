@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/UniversityRadioYork/baps3d/bifrost/msgproto"
+	"github.com/UniversityRadioYork/bifrost-go/msgproto"
 
 	"github.com/UniversityRadioYork/baps3d/controller"
 )
