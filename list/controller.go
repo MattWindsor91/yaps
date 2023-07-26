@@ -5,7 +5,7 @@ package list
 import (
 	"fmt"
 
-	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/MattWindsor91/yaps/controller"
 )
 
 // RoleName gives the role name for a List Controller.

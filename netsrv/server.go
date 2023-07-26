@@ -8,10 +8,10 @@ import (
 
 	"github.com/UniversityRadioYork/bifrost-go/comm"
 
-	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/MattWindsor91/yaps/controller"
 )
 
-// Server holds the internal state of a baps3d TCP server.
+// Server holds the internal state of a yaps TCP server.
 type Server struct {
 	// log is the Server's logger.
 	log *log.Logger
@@ -55,7 +55,7 @@ type Server struct {
 	wg sync.WaitGroup
 }
 
-// New creates a new network server for a baps3d instance.
+// New creates a new network server for a yaps instance.
 func New(l *log.Logger, host string, rc *controller.Client) *Server {
 	return &Server{
 		log:          l,
@@ -88,10 +88,7 @@ func (s *Server) newConnection(ctx context.Context, c net.Conn) error {
 		return err
 	}
 
-	conBifrost, conBifrostClient, err := conClient.Bifrost(ctx)
-	if err != nil {
-		return err
-	}
+	conBifrost, conBifrostClient := controller.NewBifrost(conClient)
 
 	ioClient := comm.IoEndpoint{
 		Io:       c,

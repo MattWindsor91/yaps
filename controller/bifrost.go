@@ -13,7 +13,7 @@ import (
 )
 
 // sversion is the Baps3D semantic server version.
-const sversion = "baps3d-0.0.0"
+const sversion = "yaps-0.0.0"
 
 // UnknownWord returns an error for when a Bifrost parser doesn't understand the
 // word w.
@@ -30,10 +30,6 @@ type Bifrost struct {
 	// bifrost is the endpoint being used to talk to a Bifrost client.
 	bifrost *comm.Endpoint
 
-	// parser is some type that provides parsers and emitters for Bifrost
-	// messages.
-	parser comm.Parser
-
 	// reply is the channel this adapter uses to service replies to requests it sends to the client.
 	reply chan Response
 }
@@ -41,7 +37,7 @@ type Bifrost struct {
 // NewBifrost wraps client inside a Bifrost adapter with parsing and emitting
 // done by parser.
 // It returns a bifrost.Endpoint for talking to the adapter.
-func NewBifrost(client *Client, parser comm.Parser) (*Bifrost, *comm.Endpoint) {
+func NewBifrost(client *Client) (*Bifrost, *comm.Endpoint) {
 	reply := make(chan Response)
 
 	pubEnd, privEnd := comm.NewEndpointPair()
@@ -50,7 +46,6 @@ func NewBifrost(client *Client, parser comm.Parser) (*Bifrost, *comm.Endpoint) {
 		client:  client,
 		bifrost: privEnd,
 		reply:   reply,
-		parser:  parser,
 	}
 
 	return &bif, pubEnd
@@ -103,7 +98,7 @@ func (b *Bifrost) Run(ctx context.Context) {
 //
 
 // handleRequest handles the request message rq.
-// It returns whether or not the client is still able to handle
+// It returns whether the client is still able to handle
 // requests.
 func (b *Bifrost) handleRequest(ctx context.Context, rq message.Message) bool {
 	request, err := b.fromMessage(rq)
@@ -132,7 +127,7 @@ func (b *Bifrost) bodyFromMessage(m message.Message) (interface{}, error) {
 	case "dump":
 		return parseDumpMessage(m.Args())
 	default:
-		return b.parser.ParseBifrostRequest(m.Word(), m.Args())
+		return comm.ParseMessage(&m)
 	}
 }
 
@@ -214,8 +209,11 @@ func (b *Bifrost) handleResponse(rs Response) error {
 		return b.handleAck(tag, r)
 	case core.IamaResponse:
 		return b.handleRole(tag, r)
+	case comm.Messager:
+		b.bifrost.Send(context.Background(), *r.Message(tag))
+		return nil
 	default:
-		return b.parser.EmitBifrostResponse(tag, r, b.bifrost.Tx)
+		return fmt.Errorf("can't turn %v into a message", r)
 	}
 }
 

@@ -4,18 +4,17 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
 
-	"github.com/UniversityRadioYork/baps3d/config"
+	"github.com/MattWindsor91/yaps/config"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/UniversityRadioYork/baps3d/console"
-	"github.com/UniversityRadioYork/baps3d/controller"
-	"github.com/UniversityRadioYork/baps3d/list"
-	"github.com/UniversityRadioYork/baps3d/netsrv"
+	"github.com/MattWindsor91/yaps/console"
+	"github.com/MattWindsor91/yaps/controller"
+	"github.com/MattWindsor91/yaps/list"
+	"github.com/MattWindsor91/yaps/netsrv"
 )
 
 func makeLog(section string, enabled bool) *log.Logger {
@@ -23,7 +22,7 @@ func makeLog(section string, enabled bool) *log.Logger {
 	if enabled {
 		lw = os.Stderr
 	} else {
-		lw = ioutil.Discard
+		lw = io.Discard
 	}
 
 	return log.New(lw, "["+section+"] ", log.LstdFlags)
@@ -59,7 +58,7 @@ func main() {
 
 	rootLog := makeLog("root", true)
 
-	cfile := "baps3d.toml"
+	cfile := "yaps.toml"
 	conf, err := config.Parse(cfile)
 	if err != nil {
 		rootLog.Printf("couldn't open config: %v\n", err)
@@ -114,7 +113,7 @@ func main() {
 	if err := errg.Wait(); err != nil {
 		rootLog.Printf("main subsystem error: %s", err.Error())
 	}
-	rootLog.Println("It's now safe to turn off your baps3d.")
+	rootLog.Println("It's now safe to turn off your yaps.")
 }
 
 func mainLoop(rootClient *controller.Client, interrupt chan os.Signal, ctx context.Context, rootLog *log.Logger) {
@@ -123,7 +122,7 @@ func mainLoop(rootClient *controller.Client, interrupt chan os.Signal, ctx conte
 		select {
 		case _, running = <-rootClient.Rx:
 			// Accept, but ignore, all messages from the root client.
-			// Start closing baps3d if the client has closed.
+			// Start closing yaps if the client has closed.
 		case <-interrupt:
 			// Ctrl-C, so gracefully shut down.
 			if err := rootClient.Shutdown(ctx); err != nil {

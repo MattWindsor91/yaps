@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/UniversityRadioYork/baps3d/list"
+	"github.com/MattWindsor91/yaps/list"
 )
 
 func ExampleAutoMode_String() {

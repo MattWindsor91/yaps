@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/MattWindsor91/yaps/controller"
 	"github.com/UniversityRadioYork/bifrost-go/comm"
 	"github.com/UniversityRadioYork/bifrost-go/core"
 	"github.com/UniversityRadioYork/bifrost-go/message"

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// List is the internal representation of a baps3d list.
+// List is the internal representation of a yaps list.
 // It only maintains the playlist itself: it does not talk to the environment,
 // nor does it know anything about what is actually playing.
 type List struct {
@@ -27,7 +27,7 @@ type List struct {
 	usedHashes map[string]struct{}
 }
 
-// New creates a new baps3d list.
+// New creates a new yaps list.
 // The list begins with no selection, an empty list, and autoselect off.
 func New() *List {
 	// Hopefully, the current time is an ok seed.

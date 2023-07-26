@@ -7,8 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"github.com/UniversityRadioYork/bifrost-go/comm"
 )
 
 var (
@@ -93,44 +91,6 @@ func (c *Client) Shutdown(ctx context.Context) error {
 	// Client.Shutdown() should be idempotent.
 	_, err := c.SendAndProcessReplies(ctx, "", shutdownRequest{}, cb)
 	return err
-}
-
-// Bifrost tries to get a Bifrost adapter for Client c's Controller.
-// This fails if the Controller's state can't understand Bifrost messages.
-func (c *Client) Bifrost(ctx context.Context) (*Bifrost, *comm.Endpoint, error) {
-	var (
-		bf  *Bifrost
-		bfc *comm.Endpoint
-	)
-
-	bfset := false
-
-	cb := func(r Response) error {
-		b, ok := r.Body.(bifrostParserResponse)
-		if !ok {
-			return fmt.Errorf("got an unexpected response")
-		}
-		if bfset {
-			return fmt.Errorf("got a duplicate parser response")
-		}
-
-		bf, bfc = NewBifrost(c, b)
-		bfset = true
-		return nil
-	}
-
-	alive, err := c.SendAndProcessReplies(ctx, "", bifrostParserRequest{}, cb)
-	if !alive {
-		return nil, nil, ErrControllerShutDown
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-	if !bfset {
-		return nil, nil, fmt.Errorf("didn't get a parser response")
-	}
-
-	return bf, bfc, nil
 }
 
 // ProcessRepliesUntilAck drains the channel reply until an DoneResponse is

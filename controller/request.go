@@ -56,9 +56,3 @@ type newClientRequest struct{}
 //
 // This is kept private because clients should instead call Client.Shutdown.
 type shutdownRequest struct{}
-
-// bifrostParserRequest requests a BifrostParser for the Controller.
-// If the Controller's internal state understands Bifrost messages, it will send a bifrostParserResponse.
-//
-// This is kept private because clients should instead call client.BifrostParser.
-type bifrostParserRequest struct{}

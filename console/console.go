@@ -10,7 +10,7 @@ import (
 
 	"github.com/UniversityRadioYork/bifrost-go/message"
 
-	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/MattWindsor91/yaps/controller"
 	"github.com/UniversityRadioYork/bifrost-go/comm"
 	"github.com/chzyer/readline"
 )
@@ -45,10 +45,7 @@ func New(ctx context.Context, client *controller.Client) (*Console, error) {
 		return nil, err
 	}
 
-	bf, bfc, err := client.Bifrost(ctx)
-	if err != nil {
-		return nil, err
-	}
+	bf, bfc := controller.NewBifrost(client)
 
 	return &Console{
 		client:  client,

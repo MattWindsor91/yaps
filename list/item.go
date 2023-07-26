@@ -28,7 +28,7 @@ func (i ItemType) String() string {
 	}
 }
 
-// Item is the internal representation of a baps3d list item.
+// Item is the internal representation of a yaps list item.
 type Item struct {
 	// hash is the inserter-supplied unique hash of the item.
 	hash string

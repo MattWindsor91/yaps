@@ -1,7 +1,7 @@
 package controller
 
-// This file defines Controller, an object that encapsulates part of a baps3d server's state and provides a Request/Response interface to it.
-// The baps3d state must satisfy the 'Controllable' interface.
+// This file defines Controller, an object that encapsulates part of a yaps server's state and provides a Request/Response interface to it.
+// The yaps state must satisfy the 'Controllable' interface.
 
 import (
 	"context"
@@ -10,8 +10,6 @@ import (
 	"reflect"
 
 	"github.com/UniversityRadioYork/bifrost-go/core"
-
-	"github.com/UniversityRadioYork/bifrost-go/comm"
 )
 
 var (
@@ -21,7 +19,7 @@ var (
 	ErrControllerCannotSpeakBifrost = errors.New("this controller's state can't parse Bifrost messages")
 )
 
-// Controller wraps a baps3d service in a channel-based interface.
+// Controller wraps a yaps service in a channel-based interface.
 // The service must satisfy the 'Controllable' interface.
 type Controller struct {
 	// state is the internal state managed by the Controller.
@@ -154,8 +152,6 @@ func (c *Controller) handleRequest(ctx context.Context, rq Request) {
 		err = c.handleNewClientRequest(o, body)
 	case shutdownRequest:
 		err = c.handleShutdownRequest(o, body)
-	case bifrostParserRequest:
-		err = c.handleBifrostParserRequest(o, body)
 	default:
 		err = c.handleStateSpecificRequest(o, body)
 	}
@@ -221,17 +217,6 @@ func (c *Controller) handleShutdownRequest(o RequestOrigin, b shutdownRequest) e
 //
 // Responding
 //
-
-// handleBifrostParserRequest handles a get-Bifrost-parser request with origin o and body b.
-func (c *Controller) handleBifrostParserRequest(o RequestOrigin, b bifrostParserRequest) error {
-	bp, ok := c.state.(comm.Parser)
-	if !ok {
-		return ErrControllerCannotSpeakBifrost
-	}
-
-	c.reply(o, bifrostParserResponse(bp))
-	return nil
-}
 
 // reply sends a unicast response with body rbody to the request origin to.
 func (c *Controller) reply(to RequestOrigin, rbody interface{}) {

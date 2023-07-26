@@ -9,7 +9,7 @@ import (
 
 	"github.com/UniversityRadioYork/bifrost-go/message"
 
-	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/MattWindsor91/yaps/controller"
 )
 
 type testState struct{}
@@ -138,37 +138,11 @@ func TestClient_Send_Reply(t *testing.T) {
 	testWithController(&testState{}, f, t)
 }
 
-// TestClient_Bifrost_NoBifrostParser tests Client.Bifrost's behaviour when its
-// parent Controller's inner state doesn't understand Bifrost.
-func TestClient_Bifrost_NoBifrostParser(t *testing.T) {
-	f := func(ctx context.Context, cli *controller.Client, t *testing.T) {
-		bf, bfc, err := cli.Bifrost(ctx)
-		if err == nil {
-			t.Errorf("expected an error")
-		}
-		if err != controller.ErrControllerCannotSpeakBifrost {
-			t.Errorf("incorrect error sent")
-		}
-
-		if bf != nil {
-			t.Error("received non-nil Bifrost from failing Bifrost() call")
-		}
-
-		if bfc != nil {
-			t.Error("received non-nil BifrostClient from failing Bifrost() call")
-		}
-	}
-	testWithController(&testState{}, f, t)
-}
-
 // TestClient_Bifrost_BifrostParser tests Client.Bifrost's behaviour when its
 // parent Controller's inner state understands Bifrost.
 func TestClient_Bifrost_BifrostParser(t *testing.T) {
 	f := func(ctx context.Context, cli *controller.Client, t *testing.T) {
-		bf, bfc, err := cli.Bifrost(ctx)
-		if err != nil {
-			t.Errorf("got unexpected error: %s", err.Error())
-		}
+		bf, bfc := controller.NewBifrost(cli)
 
 		if bf == nil {
 			t.Error("got nil Bifrost from passing Bifrost() call")

@@ -9,7 +9,7 @@ import (
 
 	"github.com/UniversityRadioYork/bifrost-go/message"
 
-	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/MattWindsor91/yaps/controller"
 )
 
 // ParseBifrostRequest handles Bifrost parsing for List controllers.

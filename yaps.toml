@@ -1,0 +1,5 @@
+# Example YAPS toml file
+[Console]
+enabled = true
+
+[[Lists]]

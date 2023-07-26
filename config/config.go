@@ -11,7 +11,7 @@ type Config struct {
 	Net     Net
 }
 
-// Net is the configuration struct for the baps3d net server.
+// Net is the configuration struct for the yaps net server.
 type Net struct {
 	// Enabled toggles whether the net server is enabled.
 	Enabled bool
@@ -21,13 +21,13 @@ type Net struct {
 	Log bool
 }
 
-// List is the configuration struct for a baps3d list node.
+// List is the configuration struct for a yaps list node.
 type List struct {
 	// Player is the TCP host:port string for the mounted playd instance.
 	Player string
 }
 
-// Console is the configuration struct for the baps3d console.
+// Console is the configuration struct for the yaps console.
 type Console struct {
 	// Enabled toggles whether the console is enabled.
 	Enabled bool

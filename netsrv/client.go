@@ -6,11 +6,11 @@ import (
 	"log"
 	"sync"
 
-	"github.com/UniversityRadioYork/baps3d/controller"
+	"github.com/MattWindsor91/yaps/controller"
 	"github.com/UniversityRadioYork/bifrost-go/comm"
 )
 
-// Client holds the server-side state of a baps3d Bifrost client.
+// Client holds the server-side state of a yaps Bifrost client.
 type Client struct {
 	// name holds a descriptive name for the Client.
 	name string
